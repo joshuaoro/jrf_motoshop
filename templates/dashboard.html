@@ -1,0 +1,106 @@
+{% extends "base_new.html" %}
+
+{% block page_type %}dashboard{% endblock %}
+
+{% block title %}Dashboard - JRF System Panel{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <!-- Statistics Cards -->
+    <div class="card p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600 mb-1">Total Parts</p>
+                <p class="text-2xl font-bold text-gray-900">{{ total_parts }}</p>
+                <p class="text-sm text-gray-500 mt-1">
+                    <i class="fas fa-box text-blue-500"></i> In inventory
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                <i class="fas fa-boxes text-blue-500 text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600 mb-1">Low Stock Items</p>
+                <p class="text-2xl font-bold text-gray-900">{{ low_stock_parts }}</p>
+                <p class="text-sm text-yellow-600 mt-1">
+                    <i class="fas fa-exclamation-triangle"></i> Needs attention
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-yellow-50 rounded-lg flex items-center justify-center">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600 mb-1">Total Sales</p>
+                <p class="text-2xl font-bold text-gray-900">{{ total_sales }}</p>
+                <p class="text-sm text-green-600 mt-1">
+                    <i class="fas fa-shopping-cart"></i> Transactions
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                <i class="fas fa-shopping-cart text-green-500 text-xl"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm text-gray-600 mb-1">Welcome</p>
+                <p class="text-lg font-bold text-gray-900">{{ current_user.name }}</p>
+                <p class="text-sm text-gray-500 mt-1">
+                    <i class="fas fa-user"></i> {{ current_user.role|title }}
+                </p>
+            </div>
+            <div class="w-12 h-12 bg-purple-50 rounded-lg flex items-center justify-center">
+                <i class="fas fa-user text-purple-500 text-xl"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities -->
+<div class="card p-6">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4">Recent Activities</h2>
+    <div class="space-y-4">
+        {% for activity in recent_activities %}
+        <div class="flex items-start pb-4 border-b border-gray-200 last:border-0 last:pb-0">
+            <div class="p-2 rounded-full {{ activity.icon_bg }} text-white mr-4">
+                <i class="{{ activity.icon }}"></i>
+            </div>
+            <div class="flex-1">
+                <p class="text-sm text-gray-700">{{ activity.message }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ activity.timestamp|time_ago }}</p>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-center text-gray-500 py-4">No recent activities</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-refresh the dashboard every 5 minutes
+    setTimeout(function() {
+        window.location.reload();
+    }, 5 * 60 * 1000);
+    
+    // Initialize any dashboard-specific JavaScript here
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Dashboard initialized');
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,1011 @@
+{% extends "base_new.html" %}
+
+{% block page_type %}inventory{% endblock %}
+
+{% block title %}Inventory Management - JRF System Panel{% endblock %}
+
+{% block page_title %}Inventory Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .part-image {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 8px;
+    }
+    .stock-progress {
+        width: 100%;
+        height: 0.5rem;
+        background-color: #e5e7eb;
+        border-radius: 0.25rem;
+        overflow: hidden;
+    }
+    .stock-progress-bar {
+        height: 100%;
+        border-radius: 0.25rem;
+    }
+    .stock-low-1 { width: 1%; }
+    .stock-low-2 { width: 2%; }
+    .stock-low-3 { width: 3%; }
+    .stock-low-4 { width: 4%; }
+    .stock-full { width: 100%; }
+    .stock-red { background-color: #ef4444; }
+    .stock-yellow { background-color: #eab308; }
+    .stock-green { background-color: #22c55e; }
+    .part-row {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .part-row:hover {
+        background-color: rgba(37, 99, 235, 0.05);
+        transform: translateX(2px);
+    }
+    .product-modal {
+        backdrop-filter: blur(8px);
+    }
+    .product-detail-image {
+        width: 100%;
+        height: 300px;
+        object-fit: cover;
+        border-radius: 12px;
+    }
+    .fade-in {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Search and filter section -->
+<div class="bg-white shadow rounded-lg p-4 mb-6">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+        <div class="relative w-full md:w-1/3 mb-4 md:mb-0">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-search text-gray-400"></i>
+            </div>
+            <input type="text" id="searchInput" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Search parts...">
+        </div>
+        <div class="flex space-x-2">
+            <select id="categoryFilter" class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                <option value="">All Categories</option>
+                <option value="engine">Engine</option>
+                <option value="electrical">Electrical</option>
+                <option value="suspension">Suspension</option>
+                <option value="brakes">Brakes</option>
+                <option value="body">Body</option>
+            </select>
+            {% if current_user.can_manage_inventory() %}
+            <button id="addPartBtn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                <i class="fas fa-plus -ml-1 mr-2"></i> Add Part
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Parts table -->
+<div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Part</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Brand</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stock</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200" id="partsTableBody" data-parts='{{ parts_json|tojson }}'>
+                {% for part in parts_json %}
+                <tr class="part-row" data-category="{{ part.part_type|lower }}" 
+                    data-id="{{ part.id }}"
+                    data-name="{{ part.name }}"
+                    data-description="{{ part.description or 'No description available' | e }}"
+                    data-brand="{{ part.brand | e }}"
+                    data-type="{{ part.part_type | e }}"
+                    data-price="{{ part.price }}"
+                    data-stock="{{ part.stock_quantity }}"
+                    data-suppliers='{{ part.suppliers|tojson }}'>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 bg-gray-100 rounded-xl flex items-center justify-center">
+                                {% if part.image_url %}
+                                <img class="part-image" src="{{ part.image_url }}" alt="{{ part.name }}">
+                                {% else %}
+                                <i class="fas fa-box text-gray-400"></i>
+                                {% endif %}
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900">{{ part.name }}</div>
+                                <div class="text-sm text-gray-500">SKU: {{ part.id }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                            {{ part.part_type or 'N/A' }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {{ part.brand or 'N/A' }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if part.suppliers %}
+                            <div class="flex flex-wrap gap-1">
+                                {% for supplier in part.suppliers %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        {{ supplier.name }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-gray-400 text-sm">No supplier</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-bold text-blue-600">₱{{ "%.2f"|format(part.price) }}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium">{{ part.stock_quantity }} in stock</div>
+                        <div class="stock-progress mt-1">
+                            {% if part.stock_quantity == 0 %}
+                                <div class="stock-progress-bar stock-red stock-low-1"></div>
+                            {% elif part.stock_quantity < 5 %}
+                                <div class="stock-progress-bar stock-yellow stock-low-{{ part.stock_quantity }}"></div>
+                            {% else %}
+                                <div class="stock-progress-bar stock-green stock-full"></div>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% if part.stock_quantity == 0 %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                Out of Stock
+                            </span>
+                        {% elif part.stock_quantity < 5 %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Low Stock
+                            </span>
+                        {% else %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                In Stock
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        {% if current_user.can_manage_inventory() %}
+                        <button data-action="edit" data-part-id="{{ part.id }}" class="text-blue-600 hover:text-blue-900 mr-3 transition-colors cursor-pointer" type="button">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button data-action="delete" data-part-id="{{ part.id }}" class="text-red-600 hover:text-red-900 transition-colors cursor-pointer" type="button">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        {% else %}
+                        <span class="text-gray-400 text-xs">View Only</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                        No parts found. <a href="#" id="addFirstPart" class="text-blue-600 hover:text-blue-800">Add your first part</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Product Details Modal -->
+<div id="productModal" class="fixed inset-0 bg-black/50 product-modal hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden fade-in">
+            <div class="relative">
+                <button type="button" onclick="closeProductModal()" class="absolute top-4 right-4 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors cursor-pointer">
+                    <i class="fas fa-times text-gray-600"></i>
+                </button>
+                
+                <img id="modalProductImage" src="" alt="" class="product-detail-image">
+                
+                <div class="absolute bottom-0 left-0 right-0 bg-black/80 p-6">
+                    <h2 id="modalProductName" class="text-2xl font-bold text-white mb-2"></h2>
+                    <div class="flex items-center space-x-4 text-white/90 text-sm">
+                        <span id="modalProductBrand"></span>
+                        <span>•</span>
+                        <span id="modalProductType"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <span class="text-3xl font-bold text-blue-600" id="modalProductPrice"></span>
+                    </div>
+                    <div id="modalStockBadge" class="px-4 py-2 rounded-full text-sm font-semibold"></div>
+                </div>
+                
+                <p id="modalProductDescription" class="text-gray-600 mb-6"></p>
+                
+                <!-- Enhanced Product Information Grid -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <p class="text-sm text-gray-500 mb-1">Stock Quantity</p>
+                        <p class="text-xl font-semibold text-gray-900" id="modalProductStock"></p>
+                        <p class="text-xs text-gray-500 mt-1" id="modalStockStatus"></p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <p class="text-sm text-gray-500 mb-1">Product ID</p>
+                        <p class="text-xl font-semibold text-gray-900" id="modalProductId"></p>
+                        <p class="text-xs text-gray-500 mt-1">SKU: #<span id="modalProductSku"></span></p>
+                    </div>
+                </div>
+                
+                <!-- Supplier Information -->
+                <div class="bg-blue-50 rounded-xl p-4 mb-6">
+                    <h4 class="text-sm font-semibold text-blue-900 mb-3">
+                        <i class="fas fa-truck mr-2"></i>Supplier Information
+                    </h4>
+                    <div id="modalSupplierInfo" class="space-y-2">
+                        <p class="text-sm text-blue-700">Loading supplier data...</p>
+                    </div>
+                </div>
+                
+                <!-- Sales Performance -->
+                <div class="bg-green-50 rounded-xl p-4 mb-6">
+                    <h4 class="text-sm font-semibold text-green-900 mb-3">
+                        <i class="fas fa-chart-line mr-2"></i>Sales Performance
+                    </h4>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="text-center">
+                            <p class="text-lg font-bold text-green-900" id="modalTotalSold">0</p>
+                            <p class="text-xs text-green-700">Total Sold</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-lg font-bold text-green-900" id="modalRevenue">₱0</p>
+                            <p class="text-xs text-green-700">Revenue</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-lg font-bold text-green-900" id="modalAvgPrice">₱0</p>
+                            <p class="text-xs text-green-700">Avg Price</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Product Specifications -->
+                <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-info-circle mr-2"></i>Product Details
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <span class="text-gray-500">Category:</span>
+                            <span class="font-medium text-gray-900 ml-2" id="modalProductCategory"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Brand:</span>
+                            <span class="font-medium text-gray-900 ml-2" id="modalProductBrand"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex space-x-3">
+                    {% if current_user.can_manage_inventory() %}
+                    <button type="button" onclick="editPart(currentProductId)" class="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition-colors font-medium cursor-pointer">
+                        <i class="fas fa-edit mr-2"></i>
+                        Edit Product
+                    </button>
+                    {% endif %}
+                    <button type="button" onclick="closeProductModal()" class="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl hover:bg-gray-300 transition-colors font-medium cursor-pointer">
+                        <i class="fas fa-times mr-2"></i>
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Part Modal -->
+<div id="partModal" class="hidden fixed z-10 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closePartModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        
+        <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+            <div class="hidden sm:block absolute top-0 right-0 pt-4 pr-4">
+                <button type="button" class="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none" onclick="closePartModal()">
+                    <span class="sr-only">Close</span>
+                    <i class="fas fa-times h-6 w-6"></i>
+                </button>
+            </div>
+            
+            <div>
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
+                    <i class="fas fa-box text-blue-600"></i>
+                </div>
+                <div class="mt-3 text-center sm:mt-5">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modalTitle">
+                        Add New Part
+                    </h3>
+                    <div class="mt-4">
+                        <form id="partForm" class="space-y-4">
+                            <input type="hidden" id="partId" name="partId">
+                            
+                            <div class="grid grid-cols-1 gap-y-4 gap-x-4 sm:grid-cols-6">
+                                <div class="sm:col-span-6">
+                                    <label for="partName" class="block text-sm font-medium text-gray-700">Part Name</label>
+                                    <input type="text" name="partName" id="partName" required
+                                           class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                </div>
+                                
+                                <div class="sm:col-span-3">
+                                    <label for="partBrand" class="block text-sm font-medium text-gray-700">Brand</label>
+                                    <input type="text" name="partBrand" id="partBrand" required
+                                           class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                </div>
+                                
+                                <div class="sm:col-span-3">
+                                    <label for="partType" class="block text-sm font-medium text-gray-700">Category</label>
+                                    <select id="partType" name="partType" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                                        <option value="engine">Engine</option>
+                                        <option value="electrical">Electrical</option>
+                                        <option value="suspension">Suspension</option>
+                                        <option value="brakes">Brakes</option>
+                                        <option value="body">Body</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="sm:col-span-3">
+                                    <label for="partPrice" class="block text-sm font-medium text-gray-700">Price (₱)</label>
+                                    <div class="mt-1 relative rounded-md shadow-sm">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <span class="text-gray-500 sm:text-sm">₱</span>
+                                        </div>
+                                        <input type="number" step="0.01" min="0" name="partPrice" id="partPrice" required
+                                               class="focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md" 
+                                               placeholder="0.00">
+                                    </div>
+                                </div>
+                                
+                                <div class="sm:col-span-3">
+                                    <label for="partStock" class="block text-sm font-medium text-gray-700">Stock Quantity</label>
+                                    <input type="number" name="partStock" id="partStock" min="0" required
+                                           class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                </div>
+                                
+                                <div class="sm:col-span-6">
+                                    <label for="partDescription" class="block text-sm font-medium text-gray-700">Description</label>
+                                    <textarea id="partDescription" name="partDescription" rows="3" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md"></textarea>
+                                </div>
+                                
+                                <div class="sm:col-span-6">
+                                    <label for="availableSuppliers" class="block text-sm font-medium text-gray-700">Suppliers</label>
+                                    <div class="mt-1">
+                                        <select id="availableSuppliers" class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm mb-2">
+                                            <option value="">Select a supplier to add...</option>
+                                        </select>
+                                        <div id="selectedSuppliers" class="flex flex-wrap gap-2 min-h-[32px] p-2 border border-gray-200 rounded-md bg-gray-50">
+                                            <!-- Selected suppliers will be shown here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
+                <button type="button" onclick="savePart()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:col-start-2 sm:text-sm">
+                    Save
+                </button>
+                <button type="button" onclick="closePartModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:col-start-1 sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed z-10 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        
+        <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+            <div class="sm:flex sm:items-start">
+                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                    <i class="fas fa-exclamation text-red-600"></i>
+                </div>
+                <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modalTitle">
+                        Delete Part
+                    </h3>
+                    <div class="mt-2">
+                        <p class="text-sm text-gray-500">
+                            Are you sure you want to delete this part? This action cannot be undone.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                <button type="button" onclick="confirmDelete()" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
+                    Delete
+                </button>
+                <button type="button" onclick="closeDeleteModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Initialize variables
+    let partsData = [];
+    let currentPartId = null;
+    let selectedSupplierIds = new Set();
+    let allSuppliers = [];
+
+    // Load suppliers on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize DOM elements
+        const searchInput = document.getElementById('searchParts');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const partsTableBody = document.getElementById('partsTableBody');
+        const addPartBtn = document.getElementById('addPartBtn');
+        const addFirstPart = document.getElementById('addFirstPart');
+        const supplierSelect = document.getElementById('supplierSelect');
+        
+        loadSuppliers();
+        
+        if (partsTableBody) {
+            try {
+                const dataAttr = partsTableBody.getAttribute('data-parts');
+                if (dataAttr) {
+                    // Clean the data before parsing (remove any HTML entities)
+                    const cleanData = dataAttr.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+                    partsData = JSON.parse(cleanData);
+                    console.log('Loaded parts data:', partsData.length, 'items');
+                    // Ensure all parts have both id and part_id
+                    partsData = partsData.map(p => ({
+                        ...p,
+                        id: p.id || p.part_id,
+                        part_id: p.part_id || p.id,
+                        type: p.type || p.part_type,
+                        stock: p.stock || p.stock_quantity
+                    }));
+                    console.log('Normalized parts data sample:', partsData.slice(0, 2));
+                } else {
+                    console.warn('No data-parts attribute found, will use row data as fallback');
+                    partsData = [];
+                }
+            } catch (error) {
+                console.error('Error parsing parts data:', error, 'Raw data:', dataAttr);
+                partsData = [];
+            }
+        } else {
+            console.error('partsTableBody element not found');
+        }
+        
+        // Add event listeners
+        if (searchInput) {
+            searchInput.addEventListener('input', filterParts);
+        }
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', filterParts);
+        }
+        
+        // Add event delegation for table interactions
+        if (partsTableBody) {
+            partsTableBody.addEventListener('click', function(e) {
+                // Handle action button clicks - check if clicked element or its parent is a button
+                const btn = e.target.closest('button[data-action]');
+                if (btn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const action = btn.getAttribute('data-action');
+                    const partId = parseInt(btn.getAttribute('data-part-id'));
+                    
+                    if (action === 'edit') {
+                        editPart(partId);
+                    } else if (action === 'reorder') {
+                        reorderPart(partId);
+                    } else if (action === 'delete') {
+                        deletePart(partId);
+                    }
+                    return; // Exit early to prevent row click
+                }
+                
+                // Handle row clicks for product details - only if not clicking on action buttons
+                if (e.target.closest('.part-row') && !e.target.closest('button')) {
+                    const row = e.target.closest('.part-row');
+                    const partId = parseInt(row.getAttribute('data-id'));
+                    showProductDetails(partId);
+                }
+            });
+        }
+        
+        // Add event listeners for buttons
+        if (addPartBtn) {
+            addPartBtn.addEventListener('click', openAddPartModal);
+        }
+        if (addFirstPart) {
+            addFirstPart.addEventListener('click', openAddPartModal);
+        }
+        const availableSuppliers = document.getElementById('availableSuppliers');
+        if (availableSuppliers) {
+            availableSuppliers.addEventListener('change', addSupplierToPart);
+        }
+    });
+    
+    // Supplier management functions
+    function loadSuppliers() {
+        fetch('/api/suppliers')
+            .then(response => response.json())
+            .then(suppliers => {
+                allSuppliers = suppliers;
+                updateSupplierDropdown();
+            })
+            .catch(error => {
+                console.error('Error loading suppliers:', error);
+            });
+    }
+    
+    function updateSupplierDropdown() {
+        const select = document.getElementById('availableSuppliers');
+        if (!select) return;
+        
+        select.innerHTML = '<option value="">Select a supplier to add...</option>';
+        
+        allSuppliers.forEach(supplier => {
+            if (!selectedSupplierIds.has(supplier.id)) {
+                const option = document.createElement('option');
+                option.value = supplier.id;
+                option.textContent = supplier.name;
+                select.appendChild(option);
+            }
+        });
+    }
+    
+    function addSupplierToPart() {
+        const select = document.getElementById('availableSuppliers');
+        const supplierId = parseInt(select.value);
+        
+        if (!supplierId) return;
+        
+        const supplier = allSuppliers.find(s => s.id === supplierId);
+        if (!supplier) return;
+        
+        selectedSupplierIds.add(supplierId);
+        updateSelectedSuppliersDisplay();
+        updateSupplierDropdown();
+        
+        // Reset dropdown
+        select.value = '';
+    }
+    
+    function removeSupplierFromPart(supplierId) {
+        selectedSupplierIds.delete(supplierId);
+        updateSelectedSuppliersDisplay();
+        updateSupplierDropdown();
+    }
+    
+    function updateSelectedSuppliersDisplay() {
+        const container = document.getElementById('selectedSuppliers');
+        if (!container) return;
+        
+        if (selectedSupplierIds.size === 0) {
+            container.innerHTML = '<span class="text-gray-400 text-sm">No suppliers selected</span>';
+            return;
+        }
+        
+        container.innerHTML = '';
+        selectedSupplierIds.forEach(supplierId => {
+            const supplier = allSuppliers.find(s => s.id === supplierId);
+            if (!supplier) return;
+            
+            const badge = document.createElement('span');
+            badge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800';
+            badge.innerHTML = `
+                ${supplier.name}
+                <button type="button" onclick="removeSupplierFromPart(${supplierId})" class="ml-2 text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(badge);
+        });
+    }
+    
+    // Functions
+    function filterParts() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const category = categoryFilter.value;
+        
+        const rows = partsTableBody.getElementsByTagName('tr');
+        
+        for (let row of rows) {
+            if (row.getAttribute('data-category') === null) continue;
+            
+            const name = row.cells[0].textContent.toLowerCase();
+            const partCategory = row.getAttribute('data-category');
+            const matchesSearch = name.includes(searchTerm);
+            const matchesCategory = !category || partCategory === category;
+            
+            if (matchesSearch && matchesCategory) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    }
+    
+    // Show product details modal
+    function showProductDetails(partId) {
+        const row = document.querySelector(`tr[data-id="${partId}"]`);
+        if (!row) return;
+        
+        currentProductId = partId;
+        
+        const productData = {
+            id: partId,
+            name: row.getAttribute('data-name'),
+            description: row.getAttribute('data-description'),
+            brand: row.getAttribute('data-brand'),
+            type: row.getAttribute('data-type'),
+            price: parseFloat(row.getAttribute('data-price')),
+            stock: parseInt(row.getAttribute('data-stock'))
+        };
+        
+        // Update modal content
+        document.getElementById('modalProductName').textContent = productData.name;
+        document.getElementById('modalProductBrand').textContent = productData.brand;
+        document.getElementById('modalProductType').textContent = productData.type;
+        document.getElementById('modalProductPrice').textContent = `₱${productData.price.toFixed(2)}`;
+        document.getElementById('modalProductDescription').textContent = productData.description;
+        document.getElementById('modalProductStock').textContent = productData.stock;
+        document.getElementById('modalProductId').textContent = productData.id;
+        document.getElementById('modalProductSku').textContent = productData.id;
+        document.getElementById('modalProductCategory').textContent = productData.type;
+        
+        // Update stock badge and status
+        const stockBadge = document.getElementById('modalStockBadge');
+        const stockStatus = document.getElementById('modalStockStatus');
+        if (productData.stock > 10) {
+            stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-green-100 text-green-800';
+            stockBadge.textContent = `${productData.stock} in stock`;
+            stockStatus.textContent = 'Good availability';
+        } else if (productData.stock > 0) {
+            stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800';
+            stockBadge.textContent = `${productData.stock} left`;
+            stockStatus.textContent = 'Low stock - reorder soon';
+        } else {
+            stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-red-100 text-red-800';
+            stockBadge.textContent = 'Out of stock';
+            stockStatus.textContent = 'Currently unavailable';
+        }
+        
+        // Load supplier information
+        loadSupplierInfoForInventory(partId);
+        
+        // Load sales performance data
+        loadSalesPerformanceForInventory(partId);
+        
+        // Set placeholder image
+        document.getElementById('modalProductImage').src = `https://picsum.photos/seed/motorcycle-part-${partId}/600/300.jpg`;
+        document.getElementById('modalProductImage').alt = productData.name;
+        
+        // Show modal
+        document.getElementById('productModal').classList.remove('hidden');
+    }
+    
+    // Load supplier information for inventory modal
+    function loadSupplierInfoForInventory(partId) {
+        const supplierInfo = document.getElementById('modalSupplierInfo');
+        
+        // Try to get supplier data from the row or fetch from API
+        const row = document.querySelector(`tr[data-id="${partId}"]`);
+        const supplierData = row.getAttribute('data-suppliers');
+        
+        if (supplierData && supplierData !== 'null' && supplierData !== '[]' && supplierData !== '') {
+            try {
+                // Clean the data before parsing (remove any HTML entities)
+                const cleanData = supplierData.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+                const suppliers = JSON.parse(cleanData);
+                
+                if (suppliers && Array.isArray(suppliers) && suppliers.length > 0) {
+                    supplierInfo.innerHTML = suppliers.map(supplier => `
+                        <div class="flex items-center justify-between bg-white rounded-lg p-2">
+                            <div class="flex items-center">
+                                <i class="fas fa-building text-blue-600 mr-2"></i>
+                                <span class="text-sm font-medium text-blue-900">${supplier.name}</span>
+                            </div>
+                            <span class="text-xs text-blue-600">Primary</span>
+                        </div>
+                    `).join('');
+                } else {
+                    supplierInfo.innerHTML = '<p class="text-sm text-blue-700">No suppliers assigned</p>';
+                }
+            } catch (e) {
+                console.error('Error parsing supplier data:', e, 'Raw data:', supplierData);
+                supplierInfo.innerHTML = '<p class="text-sm text-blue-700">No suppliers assigned</p>';
+            }
+        } else {
+            supplierInfo.innerHTML = '<p class="text-sm text-blue-700">No suppliers assigned</p>';
+        }
+    }
+    
+    // Load sales performance data for inventory modal
+    function loadSalesPerformanceForInventory(partId) {
+        try {
+            fetch(`/api/parts/${partId}/sales-metrics`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load sales metrics');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const totalSoldEl = document.getElementById('modalTotalSold');
+                    const revenueEl = document.getElementById('modalRevenue');
+                    const avgPriceEl = document.getElementById('modalAvgPrice');
+
+                    if (totalSoldEl) {
+                        totalSoldEl.textContent = data.total_sold ?? 0;
+                    }
+                    if (revenueEl) {
+                        const revenue = data.total_revenue ?? 0;
+                        revenueEl.textContent = `₱${Number(revenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    }
+                    if (avgPriceEl) {
+                        const avgPrice = data.avg_price ?? 0;
+                        avgPriceEl.textContent = `₱${Number(avgPrice).toFixed(2)}`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading sales metrics for inventory modal:', error);
+                    const totalSoldEl = document.getElementById('modalTotalSold');
+                    const revenueEl = document.getElementById('modalRevenue');
+                    const avgPriceEl = document.getElementById('modalAvgPrice');
+
+                    if (totalSoldEl) totalSoldEl.textContent = '0';
+                    if (revenueEl) revenueEl.textContent = '₱0.00';
+                    if (avgPriceEl) avgPriceEl.textContent = '₱0.00';
+                });
+        } catch (error) {
+            console.error('Unexpected error in loadSalesPerformanceForInventory:', error);
+        }
+    }
+    
+    // Close product modal
+    function closeProductModal() {
+        document.getElementById('productModal').classList.add('hidden');
+        currentProductId = null;
+    }
+    
+    function openAddPartModal() {
+        try {
+            const modal = document.getElementById('partModal');
+            if (!modal) {
+                console.error('partModal not found');
+                alert('Error: Modal not found. Please refresh the page.');
+                return;
+            }
+            document.getElementById('modalTitle').textContent = 'Add New Part';
+            document.getElementById('partForm').reset();
+            document.getElementById('partId').value = '';
+            currentPartId = null;
+            
+            // Clear suppliers
+            selectedSupplierIds.clear();
+            updateSelectedSuppliersDisplay();
+            updateSupplierDropdown();
+            
+            modal.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error opening add part modal:', error);
+            alert('Error opening form. Please refresh the page.');
+        }
+    }
+    
+    function editPart(partId) {
+        try {
+            console.log('editPart called with partId:', partId, 'type:', typeof partId);
+            console.log('partsData length:', partsData.length);
+            console.log('partsData sample:', partsData.slice(0, 2));
+            
+            // Try to find part in partsData array
+            let part = partsData.find(p => {
+                const pId = p.part_id || p.id;
+                const pIdNum = typeof pId === 'string' ? parseInt(pId) : pId;
+                const partIdNum = typeof partId === 'string' ? parseInt(partId) : partId;
+                return pIdNum == partIdNum || pId == partId;
+            });
+            
+            // If not found in partsData, try to get from the table row directly
+            if (!part) {
+                console.log('Part not found in partsData, trying to get from table row...');
+                const row = document.querySelector(`tr.part-row[data-id="${partId}"]`);
+                if (row) {
+                    part = {
+                        id: parseInt(row.getAttribute('data-id')),
+                        part_id: parseInt(row.getAttribute('data-id')),
+                        name: row.getAttribute('data-name'),
+                        brand: row.getAttribute('data-brand') || '',
+                        part_type: row.getAttribute('data-type') || 'engine',
+                        type: row.getAttribute('data-type') || 'engine',
+                        price: parseFloat(row.getAttribute('data-price')) || 0,
+                        stock_quantity: parseInt(row.getAttribute('data-stock')) || 0,
+                        stock: parseInt(row.getAttribute('data-stock')) || 0,
+                        description: row.getAttribute('data-description') || ''
+                    };
+                    console.log('Found part from row:', part);
+                }
+            }
+            
+            if (!part) {
+                console.error('Part not found with id:', partId);
+                console.error('Available part IDs in partsData:', partsData.map(p => p.part_id || p.id));
+                alert('Error: Part not found. Please refresh the page.');
+                return;
+            }
+            
+            console.log('Found part:', part);
+            
+            closeProductModal();
+            
+            const modal = document.getElementById('partModal');
+            if (!modal) {
+                console.error('partModal not found');
+                alert('Error: Modal not found. Please refresh the page.');
+                return;
+            }
+            
+            document.getElementById('modalTitle').textContent = 'Edit Part';
+            document.getElementById('partId').value = part.part_id || part.id;
+            document.getElementById('partName').value = part.name || '';
+            document.getElementById('partBrand').value = part.brand || '';
+            document.getElementById('partType').value = part.part_type || part.type || 'engine';
+            document.getElementById('partPrice').value = part.price || '0.00';
+            document.getElementById('partStock').value = part.stock_quantity || part.stock || '0';
+            document.getElementById('partDescription').value = part.description || '';
+            
+            // Load existing suppliers
+            selectedSupplierIds.clear();
+            if (part.suppliers && part.suppliers.length > 0) {
+                part.suppliers.forEach(supplier => {
+                    selectedSupplierIds.add(supplier.id);
+                });
+            }
+            updateSelectedSuppliersDisplay();
+            updateSupplierDropdown();
+            
+            currentPartId = partId;
+            modal.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error editing part:', error);
+            alert('Error opening edit form. Please refresh the page.');
+        }
+    }
+    
+    function closePartModal() {
+        document.getElementById('partModal').classList.add('hidden');
+        currentPartId = null;
+    }
+    
+    function savePart() {
+        try {
+            const form = document.getElementById('partForm');
+            if (!form) {
+                alert('Error: Form not found');
+                return;
+            }
+            
+            const formData = new FormData(form);
+            
+            const partData = {
+                name: formData.get('partName'),
+                brand: formData.get('partBrand'),
+                part_type: formData.get('partType'),
+                price: parseFloat(formData.get('partPrice')) || 0,
+                stock_quantity: parseInt(formData.get('partStock')) || 0,
+                description: formData.get('partDescription') || '',
+                supplier_ids: Array.from(selectedSupplierIds)
+            };
+            
+            // Validate required fields
+            if (!partData.name || !partData.brand || !partData.part_type) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            const partId = formData.get('partId');
+            const url = partId ? `/api/parts/${partId}` : '/api/parts';
+            const method = partId ? 'PUT' : 'POST';
+            
+            console.log('Saving part:', { url, method, partData });
+            
+            fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(partData)
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.message || 'Failed to save part');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving the part: ' + error.message);
+            });
+        } catch (error) {
+            console.error('Error in savePart:', error);
+            alert('An error occurred: ' + error.message);
+        }
+    }
+    
+    function deletePart(partId) {
+        try {
+            currentPartId = partId;
+            const deleteModal = document.getElementById('deleteModal');
+            if (!deleteModal) {
+                console.error('deleteModal not found');
+                alert('Error: Delete modal not found. Please refresh the page.');
+                return;
+            }
+            deleteModal.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error opening delete modal:', error);
+            alert('Error opening delete confirmation. Please refresh the page.');
+        }
+    }
+    
+    function confirmDelete() {
+        if (!currentPartId) return;
+        
+        fetch(`/api/parts/${currentPartId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.message || 'Failed to delete part');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the part');
+        });
+    }
+    
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,357 @@
+{% extends "base_new.html" %}
+
+{% block title %}Suppliers - JRF System Panel{% endblock %}
+
+{% block page_title %}Supplier Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .supplier-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .supplier-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Supplier Management</h1>
+        <button type="button" onclick="openAddSupplierModal()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors cursor-pointer">
+            <i class="fas fa-plus mr-2"></i>Add Supplier
+        </button>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="bg-white rounded-lg shadow p-4 mb-6">
+        <div class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="Search suppliers..." 
+                           class="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suppliers Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="suppliersGrid" data-suppliers='{{ suppliers_json|tojson }}'>
+        {% for supplier in suppliers %}
+        <div class="supplier-card bg-white rounded-lg shadow-md p-6" 
+             data-name="{{ supplier.name|lower }}"
+             data-id="{{ supplier.id }}"
+             data-supplier-name="{{ supplier.name }}"
+             data-supplier-contact="{{ supplier.contact_no or '' }}"
+             data-supplier-address="{{ supplier.address or '' }}">
+            <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i class="fas fa-truck text-blue-600"></i>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="font-semibold text-gray-800">{{ supplier.name }}</h3>
+                        <p class="text-sm text-gray-500">Supplier ID: {{ supplier.id }}</p>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button type="button" onclick="editSupplier(this)" data-supplier-id="{{ supplier.id }}" class="text-blue-600 hover:text-blue-800 edit-btn cursor-pointer">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" onclick="deleteSupplier(this)" data-supplier-id="{{ supplier.id }}" class="text-red-600 hover:text-red-800 delete-btn cursor-pointer">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-phone w-5 text-gray-400"></i>
+                    <span>{{ supplier.contact_no or 'Not provided' }}</span>
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-map-marker-alt w-5 text-gray-400"></i>
+                    <span class="truncate">{{ supplier.address or 'No address' }}</span>
+                </div>
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-box w-5 text-gray-400"></i>
+                    <span>{{ supplier.parts_count }} parts supplied</span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-span-full text-center py-12">
+            <i class="fas fa-truck text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-600 mb-2">No Suppliers Found</h3>
+            <p class="text-gray-500 mb-4">Get started by adding your first supplier</p>
+            <button type="button" onclick="openAddSupplierModal()" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 cursor-pointer">
+                <i class="fas fa-plus mr-2"></i>Add First Supplier
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Add/Edit Supplier Modal -->
+<div id="supplierModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold" id="modalTitle">Add Supplier</h3>
+            <button type="button" onclick="closeSupplierModal()" class="text-gray-400 hover:text-gray-600 cursor-pointer">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="supplierForm" class="space-y-4">
+            <input type="hidden" id="supplierId">
+            
+            <div>
+                <label for="supplierName" class="block text-sm font-medium text-gray-700 mb-1">Supplier Name</label>
+                <input type="text" id="supplierName" required
+                       class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div>
+                <label for="supplierContact" class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                <input type="tel" id="supplierContact"
+                       class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div>
+                <label for="supplierAddress" class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <textarea id="supplierAddress" rows="3"
+                          class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            </div>
+            
+            <div class="flex justify-end space-x-3 pt-4">
+                <button type="button" onclick="closeSupplierModal()" 
+                        class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Save Supplier
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+        <div class="text-center">
+            <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+            <h3 class="text-lg font-semibold mb-2">Delete Supplier?</h3>
+            <p class="text-gray-600 mb-6">This action cannot be undone.</p>
+            
+            <div class="flex justify-center space-x-3">
+                <button type="button" onclick="closeDeleteModal()" 
+                        class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50 cursor-pointer">
+                    Cancel
+                </button>
+                <button type="button" onclick="confirmDelete()" 
+                        class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 cursor-pointer">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let suppliersData = [];
+    let currentSupplierId = null;
+    
+    // Load suppliers data from data attribute
+    document.addEventListener('DOMContentLoaded', function() {
+        const suppliersGrid = document.getElementById('suppliersGrid');
+        if (suppliersGrid) {
+            try {
+                const dataAttr = suppliersGrid.getAttribute('data-suppliers');
+                if (dataAttr) {
+                    // Clean the data before parsing (remove any HTML entities)
+                    const cleanData = dataAttr.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+                    suppliersData = JSON.parse(cleanData);
+                    console.log('Loaded suppliers data:', suppliersData.length, 'items');
+                    // Ensure all suppliers have id field
+                    suppliersData = suppliersData.map(s => ({
+                        ...s,
+                        id: s.id || parseInt(s.id)
+                    }));
+                    console.log('Normalized suppliers data sample:', suppliersData.slice(0, 2));
+                } else {
+                    console.warn('No data-suppliers attribute found, will use card data as fallback');
+                    suppliersData = [];
+                }
+            } catch (error) {
+                console.error('Error parsing suppliers data:', error, 'Raw data:', dataAttr);
+                suppliersData = [];
+            }
+        } else {
+            console.error('suppliersGrid element not found');
+        }
+    });
+
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const cards = document.querySelectorAll('.supplier-card');
+        
+        cards.forEach(card => {
+            const name = card.getAttribute('data-name');
+            card.style.display = name.includes(searchTerm) ? 'block' : 'none';
+        });
+    });
+
+    // Modal functions
+    function openAddSupplierModal() {
+        document.getElementById('modalTitle').textContent = 'Add Supplier';
+        document.getElementById('supplierForm').reset();
+        document.getElementById('supplierId').value = '';
+        document.getElementById('supplierModal').classList.remove('hidden');
+    }
+
+    function editSupplier(button) {
+        try {
+            console.log('editSupplier called, button:', button);
+            const supplierId = parseInt(button.getAttribute('data-supplier-id'));
+            console.log('supplierId:', supplierId, 'type:', typeof supplierId);
+            console.log('suppliersData length:', suppliersData.length);
+            console.log('suppliersData sample:', suppliersData.slice(0, 2));
+            
+            // Try to find supplier in suppliersData array
+            let supplier = suppliersData.find(s => {
+                const sId = s.id;
+                const sIdNum = typeof sId === 'string' ? parseInt(sId) : sId;
+                const supplierIdNum = typeof supplierId === 'string' ? parseInt(supplierId) : supplierId;
+                return sIdNum == supplierIdNum || sId == supplierId;
+            });
+            
+            // If not found in suppliersData, try to get from the card directly
+            if (!supplier) {
+                console.log('Supplier not found in suppliersData, trying to get from card...');
+                const card = button.closest('.supplier-card');
+                if (card) {
+                    supplier = {
+                        id: parseInt(card.getAttribute('data-id')),
+                        name: card.getAttribute('data-supplier-name') || '',
+                        contact_no: card.getAttribute('data-supplier-contact') || '',
+                        address: card.getAttribute('data-supplier-address') || ''
+                    };
+                    console.log('Found supplier from card:', supplier);
+                }
+            }
+            
+            if (!supplier) {
+                console.error('Supplier not found with id:', supplierId);
+                console.error('Available supplier IDs in suppliersData:', suppliersData.map(s => s.id));
+                alert('Error: Supplier not found. Please refresh the page.');
+                return;
+            }
+            
+            console.log('Found supplier:', supplier);
+            
+            const modal = document.getElementById('supplierModal');
+            if (!modal) {
+                console.error('supplierModal not found');
+                alert('Error: Modal not found. Please refresh the page.');
+                return;
+            }
+            
+            document.getElementById('modalTitle').textContent = 'Edit Supplier';
+            document.getElementById('supplierId').value = supplier.id;
+            document.getElementById('supplierName').value = supplier.name || '';
+            document.getElementById('supplierContact').value = supplier.contact_no || '';
+            document.getElementById('supplierAddress').value = supplier.address || '';
+            modal.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error editing supplier:', error);
+            alert('Error opening edit form. Please refresh the page.');
+        }
+    }
+
+    function closeSupplierModal() {
+        document.getElementById('supplierModal').classList.add('hidden');
+    }
+
+    function deleteSupplier(button) {
+        const supplierId = parseInt(button.getAttribute('data-supplier-id'));
+        currentSupplierId = supplierId;
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+        currentSupplierId = null;
+    }
+
+    function confirmDelete() {
+        if (!currentSupplierId) return;
+        
+        // Make actual API call to delete supplier
+        fetch(`/api/suppliers/${currentSupplierId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeDeleteModal();
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting supplier');
+        });
+    }
+
+    // Form submission
+    document.getElementById('supplierForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const supplierId = document.getElementById('supplierId').value;
+        const formData = {
+            name: document.getElementById('supplierName').value,
+            contact_no: document.getElementById('supplierContact').value,
+            address: document.getElementById('supplierAddress').value
+        };
+        
+        const method = supplierId ? 'PUT' : 'POST';
+        const url = supplierId ? `/api/suppliers/${supplierId}` : '/api/suppliers';
+        
+        // Make actual API call
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeSupplierModal();
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving supplier');
+        });
+    });
+</script>
+{% endblock %}

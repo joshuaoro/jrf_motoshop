@@ -1,0 +1,431 @@
+{% extends "base_new.html" %}
+
+{% block title %}Staff - JRF System Panel{% endblock %}
+
+{% block page_title %}Staff Management{% endblock %}
+
+{% block extra_css %}
+<style>
+    .staff-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .staff-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .role-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-weight: 500;
+    }
+    .role-admin { background-color: #dc2626; color: white; }
+    .role-manager { background-color: #2563eb; color: white; }
+    .role-staff { background-color: #16a34a; color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Staff Management</h1>
+        <button type="button" onclick="openAddStaffModal()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors cursor-pointer">
+            <i class="fas fa-plus mr-2"></i>Add Staff Member
+        </button>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="bg-white rounded-lg shadow p-4 mb-6">
+        <div class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="Search staff members..." 
+                           class="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+            <select id="roleFilter" class="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">All Roles</option>
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="staff">Staff</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Staff Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="staffGrid" data-staff='{{ staff_json|tojson }}'>
+        {% for user in staff %}
+        <div class="staff-card bg-white rounded-lg shadow-md p-6" 
+             data-name="{{ user.name|lower }}" 
+             data-role="{{ user.role|lower }}"
+             data-id="{{ user.id }}"
+             data-staff-name="{{ user.name }}"
+             data-staff-email="{{ user.email }}"
+             data-staff-username="{{ user.username }}"
+             data-staff-role="{{ user.role }}"
+             data-staff-contact="{{ user.contact_no or '' }}">
+            <div class="flex items-start justify-between mb-4">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold text-lg">{{ user.name[0]|upper }}</span>
+                    </div>
+                    <div class="ml-4">
+                        <h3 class="font-semibold text-gray-800">{{ user.name }}</h3>
+                        <p class="text-sm text-gray-500">ID: {{ user.id }}</p>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button type="button" onclick="editStaff(this)" data-staff-id="{{ user.id }}" class="text-blue-600 hover:text-blue-800 edit-btn cursor-pointer">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    {% if user.id != current_user.id %}
+                    <button type="button" onclick="deleteStaff(this)" data-staff-id="{{ user.id }}" class="text-red-600 hover:text-red-800 delete-btn cursor-pointer">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="role-badge role-{{ user.role|lower }}">{{ user.role|title }}</span>
+                    {% if user.id == current_user.id %}
+                    <span class="text-xs text-green-600 font-medium">You</span>
+                    {% endif %}
+                </div>
+                
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-envelope w-5 text-gray-400"></i>
+                    <span class="truncate">{{ user.email }}</span>
+                </div>
+                
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-user w-5 text-gray-400"></i>
+                    <span>{{ user.username }}</span>
+                </div>
+                
+                {% if user.contact_no %}
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-phone w-5 text-gray-400"></i>
+                    <span>{{ user.contact_no }}</span>
+                </div>
+                {% endif %}
+                
+                <div class="flex items-center text-sm text-gray-600">
+                    <i class="fas fa-shopping-cart w-5 text-gray-400"></i>
+                    <span>{{ user.sales|length }} sales</span>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-span-full text-center py-12">
+            <i class="fas fa-users text-6xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-600 mb-2">No Staff Members Found</h3>
+            <p class="text-gray-500 mb-4">Get started by adding your first staff member</p>
+            <button type="button" onclick="openAddStaffModal()" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 cursor-pointer">
+                <i class="fas fa-plus mr-2"></i>Add First Staff Member
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Add/Edit Staff Modal -->
+<div id="staffModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold" id="modalTitle">Add Staff Member</h3>
+            <button type="button" onclick="closeStaffModal()" class="text-gray-400 hover:text-gray-600 cursor-pointer">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form id="staffForm" class="space-y-4">
+            <input type="hidden" id="staffId">
+            
+            <div>
+                <label for="staffName" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                <input type="text" id="staffName" required
+                       class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div>
+                <label for="staffEmail" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" id="staffEmail" required
+                       class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div>
+                <label for="staffUsername" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <input type="text" id="staffUsername" required
+                       class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div>
+                <label for="staffRole" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select id="staffRole" required
+                        class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="staff">Staff</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            
+            <div>
+                <label for="staffPassword" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input type="password" id="staffPassword" required
+                       class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div>
+                <label for="staffContact" class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                <input type="tel" id="staffContact"
+                       class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            
+            <div class="flex justify-end space-x-3 pt-4">
+                <button type="button" onclick="closeStaffModal()" 
+                        class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Save Staff Member
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+        <div class="text-center">
+            <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+            <h3 class="text-lg font-semibold mb-2">Delete Staff Member?</h3>
+            <p class="text-gray-600 mb-6">This action cannot be undone.</p>
+            
+            <div class="flex justify-center space-x-3">
+                <button type="button" onclick="closeDeleteModal()" 
+                        class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50 cursor-pointer">
+                    Cancel
+                </button>
+                <button type="button" onclick="confirmDelete()" 
+                        class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 cursor-pointer">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let staffData = [];
+    let currentStaffId = null;
+    
+    // Load staff data from data attribute
+    document.addEventListener('DOMContentLoaded', function() {
+        const staffGrid = document.getElementById('staffGrid');
+        if (staffGrid) {
+            try {
+                const dataAttr = staffGrid.getAttribute('data-staff');
+                if (dataAttr) {
+                    // Clean the data before parsing (remove any HTML entities)
+                    const cleanData = dataAttr.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+                    staffData = JSON.parse(cleanData);
+                    console.log('Loaded staff data:', staffData.length, 'items');
+                    // Ensure all staff have id field
+                    staffData = staffData.map(s => ({
+                        ...s,
+                        id: s.id || parseInt(s.id)
+                    }));
+                    console.log('Normalized staff data sample:', staffData.slice(0, 2));
+                } else {
+                    console.warn('No data-staff attribute found, will use card data as fallback');
+                    staffData = [];
+                }
+            } catch (error) {
+                console.error('Error parsing staff data:', error, 'Raw data:', dataAttr);
+                staffData = [];
+            }
+        } else {
+            console.error('staffGrid element not found');
+        }
+    });
+
+    // Search and filter functionality
+    document.getElementById('searchInput').addEventListener('input', filterStaff);
+    document.getElementById('roleFilter').addEventListener('change', filterStaff);
+
+    function filterStaff() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const roleFilter = document.getElementById('roleFilter').value;
+        const cards = document.querySelectorAll('.staff-card');
+        
+        cards.forEach(card => {
+            const name = card.getAttribute('data-name');
+            const role = card.getAttribute('data-role');
+            const matchesSearch = name.includes(searchTerm);
+            const matchesRole = !roleFilter || role === roleFilter;
+            
+            card.style.display = matchesSearch && matchesRole ? 'block' : 'none';
+        });
+    }
+
+    // Modal functions
+    function openAddStaffModal() {
+        document.getElementById('modalTitle').textContent = 'Add Staff Member';
+        document.getElementById('staffForm').reset();
+        document.getElementById('staffId').value = '';
+        document.getElementById('staffModal').classList.remove('hidden');
+    }
+
+    function editStaff(button) {
+        try {
+            console.log('editStaff called, button:', button);
+            const staffId = parseInt(button.getAttribute('data-staff-id'));
+            console.log('staffId:', staffId, 'type:', typeof staffId);
+            console.log('staffData length:', staffData.length);
+            console.log('staffData sample:', staffData.slice(0, 2));
+            
+            // Try to find staff in staffData array
+            let staff = staffData.find(s => {
+                const sId = s.id;
+                const sIdNum = typeof sId === 'string' ? parseInt(sId) : sId;
+                const staffIdNum = typeof staffId === 'string' ? parseInt(staffId) : staffId;
+                return sIdNum == staffIdNum || sId == staffId;
+            });
+            
+            // If not found in staffData, try to get from the card directly
+            if (!staff) {
+                console.log('Staff not found in staffData, trying to get from card...');
+                const card = button.closest('.staff-card');
+                if (card) {
+                    staff = {
+                        id: parseInt(card.getAttribute('data-id')),
+                        name: card.getAttribute('data-staff-name') || '',
+                        email: card.getAttribute('data-staff-email') || '',
+                        username: card.getAttribute('data-staff-username') || '',
+                        role: card.getAttribute('data-staff-role') || '',
+                        contact_no: card.getAttribute('data-staff-contact') || ''
+                    };
+                    console.log('Found staff from card:', staff);
+                }
+            }
+            
+            if (!staff) {
+                console.error('Staff not found with id:', staffId);
+                console.error('Available staff IDs in staffData:', staffData.map(s => s.id));
+                alert('Error: Staff member not found. Please refresh the page.');
+                return;
+            }
+            
+            console.log('Found staff:', staff);
+            
+            const modal = document.getElementById('staffModal');
+            if (!modal) {
+                console.error('staffModal not found');
+                alert('Error: Modal not found. Please refresh the page.');
+                return;
+            }
+            
+            document.getElementById('modalTitle').textContent = 'Edit Staff Member';
+            document.getElementById('staffId').value = staff.id;
+            document.getElementById('staffName').value = staff.name || '';
+            document.getElementById('staffEmail').value = staff.email || '';
+            document.getElementById('staffUsername').value = staff.username || '';
+            document.getElementById('staffRole').value = staff.role || '';
+            document.getElementById('staffContact').value = staff.contact_no || '';
+            document.getElementById('staffPassword').value = ''; // Don't populate password
+            modal.classList.remove('hidden');
+        } catch (error) {
+            console.error('Error editing staff:', error);
+            alert('Error opening edit form. Please refresh the page.');
+        }
+    }
+
+    function closeStaffModal() {
+        document.getElementById('staffModal').classList.add('hidden');
+    }
+
+    function deleteStaff(button) {
+        const staffId = parseInt(button.getAttribute('data-staff-id'));
+        currentStaffId = staffId;
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+        currentStaffId = null;
+    }
+
+    function confirmDelete() {
+        if (!currentStaffId) return;
+        
+        // Make actual API call to delete staff
+        fetch(`/api/staff/${currentStaffId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeDeleteModal();
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting staff member');
+        });
+    }
+
+    // Form submission
+    document.getElementById('staffForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const staffId = document.getElementById('staffId').value;
+        const formData = {
+            name: document.getElementById('staffName').value,
+            email: document.getElementById('staffEmail').value,
+            username: document.getElementById('staffUsername').value,
+            role: document.getElementById('staffRole').value,
+            password: document.getElementById('staffPassword').value,
+            contact_no: document.getElementById('staffContact').value
+        };
+        
+        const method = staffId ? 'PUT' : 'POST';
+        const url = staffId ? `/api/staff/${staffId}` : '/api/staff';
+        
+        // Make actual API call
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                closeStaffModal();
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving staff member');
+        });
+    });
+</script>
+{% endblock %}

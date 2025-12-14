@@ -1,0 +1,1181 @@
+{% extends "base_new.html" %}
+
+{% block page_type %}sales{% endblock %}
+
+{% block title %}Sales - JRF System Panel{% endblock %}
+
+{% block page_title %}Point of Sale{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cart-item {
+        transition: background-color 0.2s;
+    }
+    .cart-item:hover {
+        background-color: #f9fafb;
+    }
+    .part-card {
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+    }
+    .part-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background-color: var(--primary);
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+    .part-card:hover::before {
+        transform: scaleX(1);
+    }
+    .part-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    }
+    .part-card:active {
+        transform: translateY(-2px);
+    }
+    .payment-method {
+        transition: all 0.3s ease;
+        border-radius: 12px;
+    }
+    .payment-method:hover {
+        background-color: #f3f4f6;
+        transform: translateY(-1px);
+    }
+    .payment-method.active {
+        border-color: #3b82f6;
+        background-color: #dbeafe;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+    .product-modal {
+        backdrop-filter: blur(8px);
+    }
+    .product-detail-image {
+        width: 100%;
+        height: 300px;
+        object-fit: cover;
+        border-radius: 12px;
+    }
+    .stock-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        backdrop-filter: blur(10px);
+    }
+    .stock-high {
+        background-color: var(--secondary);
+        color: white;
+    }
+    .stock-low {
+        background-color: rgba(245, 158, 11, 0.9);
+        color: white;
+    }
+    .stock-out {
+        background-color: var(--danger);
+        color: white;
+    }
+    .fade-in {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Left Column: Parts List -->
+    <div class="lg:col-span-2 space-y-4">
+        <!-- Search Bar -->
+        <div class="card p-6">
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input type="text" id="searchParts" 
+                       class="search-bar w-full pl-12 pr-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="Search parts by name, brand, or type...">
+            </div>
+        </div>
+        
+        <!-- Parts Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="partsGrid">
+            {% for part in parts %}
+            <div class="part-card card p-4 relative bg-white rounded-xl shadow-md" 
+                 data-id="{{ part.part_id }}"
+                 data-name="{{ part.name }}"
+                 data-price="{{ part.price }}"
+                 data-stock="{{ part.stock_quantity }}"
+                 data-description="{{ part.description or 'No description available' | e }}"
+                 data-brand="{{ part.brand | e }}"
+                 data-type="{{ part.part_type | e }}"
+                 data-suppliers='{{ part.suppliers|tojson }}'>
+                
+                <!-- Stock Badge -->
+                {% if part.stock_quantity > 10 %}
+                    <span class="stock-badge stock-high">{{ part.stock_quantity }} in stock</span>
+                {% elif part.stock_quantity > 0 %}
+                    <span class="stock-badge stock-low">{{ part.stock_quantity }} left</span>
+                {% else %}
+                    <span class="stock-badge stock-out">Out of stock</span>
+                {% endif %}
+                
+                <!-- Product Image -->
+                <div class="h-32 bg-gray-100 rounded-xl flex items-center justify-center mb-3 relative overflow-hidden">
+                    {% if part.image_url %}
+                    <img src="{{ part.image_url }}" alt="{{ part.name }}" class="h-full w-full object-cover">
+                    {% else %}
+                    <div class="absolute inset-0 bg-blue-500/10"></div>
+                    <i class="fas fa-box text-4xl text-gray-400 relative z-10"></i>
+                    {% endif %}
+                </div>
+                
+                <!-- Product Info -->
+                <h3 class="text-sm font-semibold text-gray-900 truncate mb-1">{{ part.name }}</h3>
+                <p class="text-xs text-gray-500 mb-2">{{ part.brand }} • {{ part.part_type }}</p>
+                
+                <!-- Description Preview -->
+                <p class="text-xs text-gray-600 line-clamp-2 mb-3">
+                    {{ (part.description or 'No description available')[:60] }}{% if part.description and part.description|length > 60 %}...{% endif %}
+                </p>
+                
+                <!-- Price and Action -->
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="text-lg font-bold text-blue-600">₱{{ "%.2f"|format(part.price) }}</span>
+                    </div>
+                    <button class="add-to-cart-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:shadow-lg hover:-translate-y-0.5"
+                            data-part-id="{{ part.part_id }}"
+                            data-part-name="{{ part.name }}"
+                            data-part-price="{{ part.price }}"
+                            data-part-stock="{{ part.stock_quantity }}">
+                        <i class="fas fa-plus mr-1"></i> Add
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Right Column: Cart -->
+    <div class="space-y-4">
+        <div class="card overflow-hidden bg-white rounded-xl shadow-md">
+            <div class="p-6 border-b border-gray-100">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900">Order Summary</h3>
+                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full" id="cartCount">0 items</span>
+                </div>
+            </div>
+            
+            <!-- Customer Selection -->
+            <div class="p-6 border-b border-gray-100">
+                <label for="customerSelect" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-user mr-2"></i>Customer Information
+                </label>
+                <div class="space-y-3">
+                    <select id="customerSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Walk-in Customer</option>
+                    </select>
+                    <div class="flex space-x-2">
+                        <button type="button" onclick="addNewCustomer()" class="flex-1 bg-green-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-green-700 transition-colors">
+                            <i class="fas fa-plus mr-1"></i> New Customer
+                        </button>
+                        <button type="button" onclick="editSelectedCustomer()" class="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors" disabled id="editCustomerBtn">
+                            <i class="fas fa-edit mr-1"></i> Edit
+                        </button>
+                    </div>
+                </div>
+                <!-- Customer Details Display -->
+                <div id="customerDetails" class="mt-3 p-3 bg-gray-50 rounded-lg hidden">
+                    <div class="text-sm">
+                        <div class="font-medium text-gray-900" id="customerName"></div>
+                        <div class="text-gray-600" id="customerEmail"></div>
+                        <div class="text-gray-600" id="customerPhone"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="cartItems" class="p-6 max-h-96 overflow-y-auto">
+                <!-- Cart items will be dynamically inserted here -->
+                <div class="text-center text-gray-500 py-8">
+                    <i class="fas fa-shopping-cart text-3xl text-gray-300 mb-2"></i>
+                    <p>Your cart is empty</p>
+                    <p class="text-sm">Add items to get started</p>
+                </div>
+            </div>
+            
+            <div class="border-t border-gray-200 px-6 pb-6">
+                <div class="flex justify-between text-sm text-gray-600 mb-1">
+                    <span>Subtotal</span>
+                    <span id="subtotal">₱0.00</span>
+                </div>
+                <div class="flex justify-between text-sm text-gray-600 mb-1">
+                    <span id="taxLabel">Tax (12%)</span>
+                    <span id="tax">₱0.00</span>
+                </div>
+                <div class="flex justify-between font-medium text-gray-900 mt-2 pt-2 border-t border-gray-200">
+                    <span>Total</span>
+                    <span id="total">₱0.00</span>
+                </div>
+                
+                <div class="mt-6 space-y-2">
+                    <button id="checkoutBtn" 
+                            class="w-full bg-blue-600 text-white py-2 px-4 rounded-md text-sm font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors" 
+                            disabled>
+                        Process Payment
+                    </button>
+                    <button id="clearCartBtn" 
+                            class="w-full bg-white border border-gray-300 text-gray-700 py-2 px-4 rounded-md text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                        Clear Cart
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Product Details Modal -->
+<div id="productModal" class="fixed inset-0 bg-black/50 product-modal hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden fade-in">
+            <div class="relative">
+                <button type="button" onclick="closeProductModal()" class="absolute top-4 right-4 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors cursor-pointer">
+                    <i class="fas fa-times text-gray-600"></i>
+                </button>
+                
+                <img id="modalProductImage" src="" alt="" class="product-detail-image">
+                
+                <div class="absolute bottom-0 left-0 right-0 bg-black/80 p-6">
+                    <h2 id="modalProductName" class="text-2xl font-bold text-white mb-2"></h2>
+                    <div class="flex items-center space-x-4 text-white/90 text-sm">
+                        <span id="modalProductBrand"></span>
+                        <span>•</span>
+                        <span id="modalProductType"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <span class="text-3xl font-bold text-blue-600" id="modalProductPrice"></span>
+                    </div>
+                    <div id="modalStockBadge" class="px-4 py-2 rounded-full text-sm font-semibold"></div>
+                </div>
+                
+                <p id="modalProductDescription" class="text-gray-600 mb-6"></p>
+                
+                <!-- Enhanced Product Information Grid -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <p class="text-sm text-gray-500 mb-1">Stock Quantity</p>
+                        <p class="text-xl font-semibold text-gray-900" id="modalProductStock"></p>
+                        <p class="text-xs text-gray-500 mt-1" id="modalStockStatus"></p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <p class="text-sm text-gray-500 mb-1">Product ID</p>
+                        <p class="text-xl font-semibold text-gray-900" id="modalProductId"></p>
+                        <p class="text-xs text-gray-500 mt-1">SKU: #<span id="modalProductSku"></span></p>
+                    </div>
+                </div>
+                
+                <!-- Supplier Information -->
+                <div class="bg-blue-50 rounded-xl p-4 mb-6">
+                    <h4 class="text-sm font-semibold text-blue-900 mb-3">
+                        <i class="fas fa-truck mr-2"></i>Supplier Information
+                    </h4>
+                    <div id="modalSupplierInfo" class="space-y-2">
+                        <p class="text-sm text-blue-700">Loading supplier data...</p>
+                    </div>
+                </div>
+                
+                <!-- Sales Performance -->
+                <div class="bg-green-50 rounded-xl p-4 mb-6">
+                    <h4 class="text-sm font-semibold text-green-900 mb-3">
+                        <i class="fas fa-chart-line mr-2"></i>Sales Performance
+                    </h4>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="text-center">
+                            <p class="text-lg font-bold text-green-900" id="modalTotalSold">0</p>
+                            <p class="text-xs text-green-700">Total Sold</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-lg font-bold text-green-900" id="modalRevenue">₱0</p>
+                            <p class="text-xs text-green-700">Revenue</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-lg font-bold text-green-900" id="modalAvgPrice">₱0</p>
+                            <p class="text-xs text-green-700">Avg Price</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Product Specifications -->
+                <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-3">
+                        <i class="fas fa-info-circle mr-2"></i>Product Details
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <span class="text-gray-500">Category:</span>
+                            <span class="font-medium text-gray-900 ml-2" id="modalProductCategory"></span>
+                        </div>
+                        <div>
+                            <span class="text-gray-500">Brand:</span>
+                            <span class="font-medium text-gray-900 ml-2" id="modalProductBrand"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex space-x-3">
+                    <button type="button" onclick="addToCartFromModal()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition-colors font-medium cursor-pointer">
+                        <i class="fas fa-cart-plus mr-2"></i>
+                        Add to Cart
+                    </button>
+                    <button type="button" onclick="closeProductModal()" class="flex-1 bg-gray-200 text-gray-800 py-3 rounded-xl hover:bg-gray-300 transition-colors font-medium cursor-pointer">
+                        <i class="fas fa-times mr-2"></i>
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div id="paymentModal" class="hidden fixed z-10 inset-0 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true" onclick="closePaymentModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+        
+        <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+            <div class="hidden sm:block absolute top-0 right-0 pt-4 pr-4">
+                <button type="button" class="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none" onclick="closePaymentModal()">
+                    <span class="sr-only">Close</span>
+                    <i class="fas fa-times h-6 w-6"></i>
+                </button>
+            </div>
+            
+            <div>
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                    <i class="fas fa-credit-card text-green-600"></i>
+                </div>
+                <div class="mt-3 text-center sm:mt-5">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900">
+                        Process Payment
+                    </h3>
+                    <div class="mt-4">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-gray-600">Total Amount:</span>
+                            <span id="paymentTotal" class="text-2xl font-bold">₱0.00</span>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <h4 class="text-sm font-medium text-gray-700 text-left">Payment Method</h4>
+                            <div class="grid grid-cols-2 gap-3">
+                                <button type="button" onclick="selectPaymentMethod('cash')" 
+                                        class="payment-method p-3 border rounded-md text-center cursor-pointer"
+                                        data-method="cash">
+                                    <i class="fas fa-money-bill-wave text-2xl text-green-500 mb-1"></i>
+                                    <p class="text-sm">Cash</p>
+                                </button>
+                                <button type="button" onclick="selectPaymentMethod('card')" 
+                                        class="payment-method p-3 border rounded-md text-center cursor-pointer"
+                                        data-method="card">
+                                    <i class="far fa-credit-card text-2xl text-blue-500 mb-1"></i>
+                                    <p class="text-sm">Card</p>
+                                </button>
+                                <button type="button" onclick="selectPaymentMethod('gcash')" 
+                                        class="payment-method p-3 border rounded-md text-center cursor-pointer"
+                                        data-method="gcash">
+                                    <i class="fas fa-mobile-alt text-2xl text-indigo-500 mb-1"></i>
+                                    <p class="text-sm">GCash</p>
+                                </button>
+                                <button type="button" onclick="selectPaymentMethod('bank')" 
+                                        class="payment-method p-3 border rounded-md text-center cursor-pointer"
+                                        data-method="bank">
+                                    <i class="fas fa-university text-2xl text-purple-500 mb-1"></i>
+                                    <p class="text-sm">Bank Transfer</p>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="cashPayment" class="mt-4 space-y-3 hidden">
+                            <div>
+                                <label for="amountReceived" class="block text-sm font-medium text-gray-700 mb-1">Amount Received</label>
+                                <div class="mt-1 relative rounded-md shadow-sm">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span class="text-gray-500 sm:text-sm">₱</span>
+                                    </div>
+                                    <input type="number" step="0.01" min="0" id="amountReceived" 
+                                           class="focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md" 
+                                           placeholder="0.00"
+                                           oninput="calculateChange()">
+                                </div>
+                            </div>
+                            <div class="flex justify-between py-2 border-t">
+                                <span class="font-medium">Change:</span>
+                                <span id="changeAmount" class="font-bold">₱0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-5 sm:mt-6">
+                <button type="button" 
+                        onclick="processPayment()" 
+                        id="processPaymentBtn"
+                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed sm:text-sm"
+                        disabled>
+                    Complete Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Cart state
+    let cart = [];
+    let selectedPaymentMethod = null;
+    let taxRate = 0.12; // Default tax rate, will be updated from settings
+    let selectedCustomerId = null;
+    let allCustomers = [];
+    
+    // DOM Elements (will be initialized after DOM loads)
+    let cartItemsEl, subtotalEl, taxEl, totalEl, checkoutBtn, clearCartBtn, searchInput, processPaymentBtn, customerSelect, customerDetails, customerName, customerEmail, customerPhone, editCustomerBtn;
+    
+    // Fetch tax rate from settings
+    async function fetchTaxRate() {
+        try {
+            const response = await fetch('/api/settings/sales/tax_rate');
+            if (response.ok) {
+                const data = await response.json();
+                taxRate = parseFloat(data.value) / 100; // Convert percentage to decimal
+                console.log('Tax rate loaded from settings:', taxRate);
+                
+                // Update tax display to show current rate
+                const taxLabel = document.getElementById('taxLabel');
+                if (taxLabel) {
+                    taxLabel.textContent = `Tax (${data.value}%)`;
+                }
+                
+                updateCart(); // Recalculate cart with new tax rate
+            }
+        } catch (error) {
+            console.error('Error fetching tax rate:', error);
+            // Use default tax rate of 12%
+        }
+    }
+    
+    // Initialize the page
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize DOM elements
+        cartItemsEl = document.getElementById('cartItems');
+        subtotalEl = document.getElementById('subtotal');
+        taxEl = document.getElementById('tax');
+        totalEl = document.getElementById('total');
+        checkoutBtn = document.getElementById('checkoutBtn');
+        clearCartBtn = document.getElementById('clearCartBtn');
+        searchInput = document.getElementById('searchParts');
+        processPaymentBtn = document.getElementById('processPaymentBtn');
+        customerSelect = document.getElementById('customerSelect');
+        customerDetails = document.getElementById('customerDetails');
+        customerName = document.getElementById('customerName');
+        customerEmail = document.getElementById('customerEmail');
+        customerPhone = document.getElementById('customerPhone');
+        editCustomerBtn = document.getElementById('editCustomerBtn');
+        
+        // Fetch tax rate from settings first
+        fetchTaxRate();
+        
+        // Load customers
+        loadCustomers();
+        
+        // Load cart from localStorage if available
+        const savedCart = localStorage.getItem('posCart');
+        if (savedCart) {
+            cart = JSON.parse(savedCart);
+            updateCart();
+        }
+        
+        // Add event listeners
+        if (searchInput) {
+            searchInput.addEventListener('input', searchParts);
+        }
+        
+        // Cart button event listeners
+        if (checkoutBtn) {
+            checkoutBtn.addEventListener('click', openPaymentModal);
+        }
+        if (clearCartBtn) {
+            clearCartBtn.addEventListener('click', clearCart);
+        }
+        if (customerSelect) {
+            customerSelect.addEventListener('change', handleCustomerSelection);
+        }
+        
+        // Add event delegation for add to cart buttons and product cards
+        const partsGrid = document.getElementById('partsGrid');
+        if (partsGrid) {
+            partsGrid.addEventListener('click', function(e) {
+                // Handle add to cart button clicks - check if clicked element or its parent is a button
+                const addToCartBtn = e.target.closest('.add-to-cart-btn');
+                if (addToCartBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const partId = parseInt(addToCartBtn.getAttribute('data-part-id'));
+                    const partName = addToCartBtn.getAttribute('data-part-name');
+                    const price = parseFloat(addToCartBtn.getAttribute('data-part-price'));
+                    const stock = parseInt(addToCartBtn.getAttribute('data-part-stock'));
+                    addToCart(partId, partName, price, stock);
+                    return; // Exit early to prevent card click
+                }
+                // Handle product card clicks - only if not clicking on action buttons
+                if (e.target.closest('.part-card') && !e.target.closest('button')) {
+                    const card = e.target.closest('.part-card');
+                    const partId = parseInt(card.getAttribute('data-id'));
+                    showProductDetails(partId);
+                }
+            });
+        }
+        
+        // Add event listener for amount received input
+        const amountReceivedInput = document.getElementById('amountReceived');
+        if (amountReceivedInput) {
+            amountReceivedInput.addEventListener('input', calculateChange);
+        }
+    });
+    
+    // Search parts
+    function searchParts() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const partCards = document.querySelectorAll('.part-card');
+        
+        partCards.forEach(card => {
+            const name = card.getAttribute('data-name').toLowerCase();
+            const brand = card.getAttribute('data-brand').toLowerCase();
+            const type = card.getAttribute('data-type').toLowerCase();
+            
+            if (name.includes(searchTerm) || brand.includes(searchTerm) || type.includes(searchTerm)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+    
+    // Add item to cart
+    function addToCart(partId, partName, price, stock) {
+        // Convert and validate inputs
+        partId = parseInt(partId);
+        price = parseFloat(price);
+        stock = parseInt(stock);
+        
+        if (isNaN(partId) || isNaN(price) || isNaN(stock)) {
+            console.error('Invalid data:', { partId, partName, price, stock });
+            alert('Invalid product data');
+            return;
+        }
+        
+        // Check if already in cart
+        const existingItem = cart.find(item => item.id === partId);
+        
+        if (existingItem) {
+            if (existingItem.quantity < stock) {
+                existingItem.quantity += 1;
+            } else {
+                alert('Not enough stock available');
+                return;
+            }
+        } else {
+            if (stock > 0) {
+                cart.push({
+                    id: partId,
+                    name: partName,
+                    price: price,
+                    quantity: 1,
+                    stock: stock
+                });
+            } else {
+                alert('This item is out of stock');
+                return;
+            }
+        }
+        
+        updateCart();
+        saveCart();
+    }
+    
+    // Update cart display
+    function updateCart() {
+        if (cart.length === 0) {
+            cartItemsEl.innerHTML = `
+                <div class="text-center text-gray-500 py-8">
+                    <i class="fas fa-shopping-cart text-3xl text-gray-300 mb-2"></i>
+                    <p>Your cart is empty</p>
+                    <p class="text-sm">Add items to get started</p>
+                </div>
+            `;
+            checkoutBtn.disabled = true;
+            subtotalEl.textContent = '₱0.00';
+            taxEl.textContent = '₱0.00';
+            totalEl.textContent = '₱0.00';
+            document.getElementById('cartCount').textContent = '0 items';
+            return;
+        }
+        
+        // Calculate totals
+        let subtotal = 0;
+        let html = '';
+        
+        cart.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            subtotal += itemTotal;
+            
+            html += `
+                <div class="cart-item">
+                    <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-900">${item.name}</h4>
+                            <div class="flex items-center mt-1">
+                                <button class="text-gray-500 hover:text-gray-700" 
+                                        onclick="updateQuantity(${item.id}, ${item.quantity - 1})">
+                                    <i class="fas fa-minus text-xs"></i>
+                                </button>
+                                <input type="number" 
+                                       min="1" 
+                                       max="${item.stock}" 
+                                       value="${item.quantity}" 
+                                       class="w-12 mx-2 text-center border rounded py-1 text-sm"
+                                       onchange="updateQuantity(${item.id}, this.value)">
+                                <button class="text-gray-500 hover:text-gray-700" 
+                                        onclick="updateQuantity(${item.id}, ${item.quantity + 1})">
+                                    <i class="fas fa-plus text-xs"></i>
+                                </button>
+                                <span class="text-sm text-gray-500 ml-2">× ₱${item.price.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-medium">₱${itemTotal.toFixed(2)}</div>
+                            <button onclick="removeFromCart(${item.id})" 
+                                    class="text-red-500 hover:text-red-700 text-xs mt-1">
+                                <i class="fas fa-trash"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        const tax = subtotal * taxRate; // Use dynamic tax rate from settings
+        const total = subtotal + tax;
+        
+        cartItemsEl.innerHTML = html;
+        subtotalEl.textContent = `₱${subtotal.toFixed(2)}`;
+        taxEl.textContent = `₱${tax.toFixed(2)}`;
+        totalEl.textContent = `₱${total.toFixed(2)}`;
+        checkoutBtn.disabled = false;
+        document.getElementById('cartCount').textContent = `${cart.length} items`;
+        
+        // Update payment total
+        if (document.getElementById('paymentTotal')) {
+            document.getElementById('paymentTotal').textContent = `₱${total.toFixed(2)}`;
+        }
+    }
+    
+    // Update item quantity
+    function updateQuantity(partId, newQuantity) {
+        newQuantity = parseInt(newQuantity);
+        const item = cart.find(item => item.id === partId);
+        
+        if (!item) return;
+        
+        if (newQuantity < 1) {
+            removeFromCart(partId);
+            return;
+        }
+        
+        if (newQuantity > item.stock) {
+            alert(`Only ${item.stock} items available in stock`);
+            return;
+        }
+        
+        item.quantity = newQuantity;
+        updateCart();
+        saveCart();
+    }
+    
+    // Remove item from cart
+    function removeFromCart(partId) {
+        cart = cart.filter(item => item.id !== partId);
+        updateCart();
+        saveCart();
+    }
+    
+    // Clear cart
+    function clearCart() {
+        if (cart.length === 0 || confirm('Are you sure you want to clear the cart?')) {
+            cart = [];
+            updateCart();
+            saveCart();
+        }
+    }
+    
+    // Save cart to localStorage
+    function saveCart() {
+        localStorage.setItem('posCart', JSON.stringify(cart));
+    }
+    
+    // Show product details modal
+    function showProductDetails(partId) {
+        const card = document.querySelector(`.part-card[data-id="${partId}"]`);
+        if (!card) {
+            console.error('Product card not found for ID:', partId);
+            return;
+        }
+        
+        const productData = {
+            id: partId,
+            name: card.getAttribute('data-name'),
+            description: card.getAttribute('data-description'),
+            brand: card.getAttribute('data-brand'),
+            type: card.getAttribute('data-type'),
+            price: parseFloat(card.getAttribute('data-price')),
+            stock: parseInt(card.getAttribute('data-stock'))
+        };
+        
+        console.log('Product data:', productData);
+        
+        // Store current product for modal add to cart
+        window.currentModalProduct = productData;
+        
+        // Update basic modal content with error checking
+        const elements = {
+            modalProductName: document.getElementById('modalProductName'),
+            modalProductBrand: document.getElementById('modalProductBrand'),
+            modalProductType: document.getElementById('modalProductType'),
+            modalProductPrice: document.getElementById('modalProductPrice'),
+            modalProductDescription: document.getElementById('modalProductDescription'),
+            modalProductStock: document.getElementById('modalProductStock'),
+            modalProductId: document.getElementById('modalProductId'),
+            modalProductSku: document.getElementById('modalProductSku'),
+            modalProductCategory: document.getElementById('modalProductCategory')
+        };
+        
+        // Update elements with error checking
+        Object.entries(elements).forEach(([id, element]) => {
+            if (!element) {
+                console.error(`Element not found: ${id}`);
+                return;
+            }
+        });
+        
+        if (elements.modalProductName) elements.modalProductName.textContent = productData.name || 'No name';
+        if (elements.modalProductBrand) elements.modalProductBrand.textContent = productData.brand || 'No brand';
+        if (elements.modalProductType) elements.modalProductType.textContent = productData.type || 'No type';
+        if (elements.modalProductPrice) elements.modalProductPrice.textContent = `₱${(productData.price || 0).toFixed(2)}`;
+        if (elements.modalProductDescription) elements.modalProductDescription.textContent = productData.description || 'No description available';
+        if (elements.modalProductStock) elements.modalProductStock.textContent = productData.stock || 0;
+        if (elements.modalProductId) elements.modalProductId.textContent = productData.id || 'N/A';
+        if (elements.modalProductSku) elements.modalProductSku.textContent = productData.id || 'N/A';
+        if (elements.modalProductCategory) elements.modalProductCategory.textContent = productData.type || 'No category';
+        
+        // Update stock badge and status
+        const stockBadge = document.getElementById('modalStockBadge');
+        const stockStatus = document.getElementById('modalStockStatus');
+        if (stockBadge && stockStatus) {
+            if (productData.stock > 10) {
+                stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-green-100 text-green-800';
+                stockBadge.textContent = `${productData.stock} in stock`;
+                stockStatus.textContent = 'Good availability';
+            } else if (productData.stock > 0) {
+                stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800';
+                stockBadge.textContent = `${productData.stock} left`;
+                stockStatus.textContent = 'Low stock - reorder soon';
+            } else {
+                stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-red-100 text-red-800';
+                stockBadge.textContent = 'Out of stock';
+                stockStatus.textContent = 'Currently unavailable';
+            }
+        } else {
+            console.error('Stock badge or status element not found');
+        }
+        
+        // Load supplier information
+        loadSupplierInfo(partId);
+        
+        // Load sales performance data
+        loadSalesPerformance(partId);
+        
+        // Store current product for cart addition
+        window.currentModalProduct = productData;
+        
+        // Set placeholder image
+        document.getElementById('modalProductImage').src = `https://picsum.photos/seed/motorcycle-part-${partId}/600/300.jpg`;
+        document.getElementById('modalProductImage').alt = productData.name;
+        
+        // Show modal
+        document.getElementById('productModal').classList.remove('hidden');
+    }
+    
+    // Load supplier information for a product
+    function loadSupplierInfo(partId) {
+        const supplierInfo = document.getElementById('modalSupplierInfo');
+        
+        // Try to get supplier data from the card or fetch from API
+        const card = document.querySelector(`.part-card[data-id="${partId}"]`);
+        const supplierData = card.getAttribute('data-suppliers');
+        
+        if (supplierData && supplierData !== 'null' && supplierData !== '[]' && supplierData !== '') {
+            try {
+                // Clean the data before parsing (remove any HTML entities)
+                const cleanData = supplierData.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+                const suppliers = JSON.parse(cleanData);
+                
+                if (suppliers && Array.isArray(suppliers) && suppliers.length > 0) {
+                    supplierInfo.innerHTML = suppliers.map(supplier => `
+                        <div class="flex items-center justify-between bg-white rounded-lg p-2">
+                            <div class="flex items-center">
+                                <i class="fas fa-building text-blue-600 mr-2"></i>
+                                <span class="text-sm font-medium text-blue-900">${supplier.name}</span>
+                            </div>
+                            <span class="text-xs text-blue-600">Primary</span>
+                        </div>
+                    `).join('');
+                } else {
+                    supplierInfo.innerHTML = '<p class="text-sm text-blue-700">No suppliers assigned</p>';
+                }
+            } catch (e) {
+                console.error('Error parsing supplier data:', e, 'Raw data:', supplierData);
+                supplierInfo.innerHTML = '<p class="text-sm text-blue-700">No suppliers assigned</p>';
+            }
+        } else {
+            supplierInfo.innerHTML = '<p class="text-sm text-blue-700">No suppliers assigned</p>';
+        }
+    }
+    
+    // Load sales performance data for a product
+    function loadSalesPerformance(partId) {
+        try {
+            fetch(`/api/parts/${partId}/sales-metrics`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load sales metrics');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const totalSoldEl = document.getElementById('modalTotalSold');
+                    const revenueEl = document.getElementById('modalRevenue');
+                    const avgPriceEl = document.getElementById('modalAvgPrice');
+
+                    if (totalSoldEl) {
+                        totalSoldEl.textContent = data.total_sold ?? 0;
+                    }
+                    if (revenueEl) {
+                        const revenue = data.total_revenue ?? 0;
+                        revenueEl.textContent = `₱${Number(revenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    }
+                    if (avgPriceEl) {
+                        const avgPrice = data.avg_price ?? 0;
+                        avgPriceEl.textContent = `₱${Number(avgPrice).toFixed(2)}`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading sales metrics for product modal:', error);
+                    const totalSoldEl = document.getElementById('modalTotalSold');
+                    const revenueEl = document.getElementById('modalRevenue');
+                    const avgPriceEl = document.getElementById('modalAvgPrice');
+
+                    if (totalSoldEl) totalSoldEl.textContent = '0';
+                    if (revenueEl) revenueEl.textContent = '₱0.00';
+                    if (avgPriceEl) avgPriceEl.textContent = '₱0.00';
+                });
+        } catch (error) {
+            console.error('Unexpected error in loadSalesPerformance:', error);
+        }
+    }
+    
+    // Add product to cart from modal
+    function addToCartFromModal() {
+        if (window.currentModalProduct) {
+            addToCart(
+                window.currentModalProduct.id,
+                window.currentModalProduct.name,
+                window.currentModalProduct.price,
+                window.currentModalProduct.stock
+            );
+            closeProductModal();
+        }
+    }
+    
+    // Close product modal
+    function closeProductModal() {
+        document.getElementById('productModal').classList.add('hidden');
+    }
+    
+    // Open payment modal
+    function openPaymentModal() {
+        if (cart.length === 0) return;
+        
+        // Update payment total
+        const total = parseFloat(totalEl.textContent.replace('₱', ''));
+        document.getElementById('paymentTotal').textContent = `₱${total.toFixed(2)}`;
+        
+        // Reset payment method
+        selectPaymentMethod(null);
+        
+        // Show modal
+        document.getElementById('paymentModal').classList.remove('hidden');
+    }
+    
+    // Close payment modal
+    function closePaymentModal() {
+        document.getElementById('paymentModal').classList.add('hidden');
+    }
+    
+    // Select payment method
+    function selectPaymentMethod(method) {
+        selectedPaymentMethod = method;
+        
+        // Update UI
+        document.querySelectorAll('.payment-method').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-method') === method);
+        });
+        
+        // Show/hide payment method forms
+        document.getElementById('cashPayment').classList.toggle('hidden', method !== 'cash');
+        
+        // Enable/disable process payment button
+        if (processPaymentBtn) {
+            processPaymentBtn.disabled = !method;
+        }
+    }
+    
+    // Calculate change for cash payment
+    function calculateChange() {
+        const amountReceived = parseFloat(document.getElementById('amountReceived').value) || 0;
+        const total = parseFloat(totalEl.textContent.replace('₱', ''));
+        const change = amountReceived - total;
+        
+        document.getElementById('changeAmount').textContent = `₱${change >= 0 ? change.toFixed(2) : '0.00'}`;
+    }
+    
+    // Process payment
+    function processPayment() {
+        if (!selectedPaymentMethod) {
+            alert('Please select a payment method');
+            return;
+        }
+        
+        if (selectedPaymentMethod === 'cash') {
+            const amountReceived = parseFloat(document.getElementById('amountReceived').value) || 0;
+            const total = parseFloat(totalEl.textContent.replace('₱', ''));
+            if (amountReceived < total) {
+                alert('Insufficient amount received');
+                return;
+            }
+        }
+        
+        const paymentData = {
+            items: cart,
+            subtotal: parseFloat(subtotalEl.textContent.replace('₱', '')),
+            tax: parseFloat(taxEl.textContent.replace('₱', '')),
+            total: parseFloat(totalEl.textContent.replace('₱', '')),
+            paymentMethod: selectedPaymentMethod,
+            customer_id: selectedCustomerId,
+            amountReceived: selectedPaymentMethod === 'cash' ? 
+                parseFloat(document.getElementById('amountReceived').value) || 0 : 0,
+            timestamp: new Date().toISOString()
+        };
+        
+        // Send sale data to server
+        fetch('/api/sales', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(paymentData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Payment processed successfully!');
+                clearCart();
+                closePaymentModal();
+            } else {
+                alert(data.message || 'Failed to process payment');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while processing the payment');
+        });
+    }
+    
+    // Customer Management Functions
+    async function loadCustomers() {
+        try {
+            const response = await fetch('/api/customers');
+            if (response.ok) {
+                allCustomers = await response.json();
+                updateCustomerDropdown();
+            }
+        } catch (error) {
+            console.error('Error loading customers:', error);
+        }
+    }
+    
+    function updateCustomerDropdown() {
+        if (!customerSelect) return;
+        
+        customerSelect.innerHTML = '<option value="">Walk-in Customer</option>';
+        allCustomers.forEach(customer => {
+            const option = document.createElement('option');
+            option.value = customer.id;
+            option.textContent = `${customer.name} - ${customer.email}`;
+            customerSelect.appendChild(option);
+        });
+    }
+    
+    function handleCustomerSelection() {
+        const customerId = customerSelect.value;
+        selectedCustomerId = customerId || null;
+        
+        if (customerId && editCustomerBtn) {
+            editCustomerBtn.disabled = false;
+        } else if (editCustomerBtn) {
+            editCustomerBtn.disabled = true;
+        }
+        
+        if (customerId) {
+            const customer = allCustomers.find(c => c.id == customerId);
+            if (customer) {
+                showCustomerDetails(customer);
+            }
+        } else {
+            hideCustomerDetails();
+        }
+    }
+    
+    function showCustomerDetails(customer) {
+        if (!customerDetails || !customerName || !customerEmail || !customerPhone) return;
+        
+        customerName.textContent = customer.name;
+        customerEmail.textContent = customer.email;
+        customerPhone.textContent = customer.phone || 'No phone';
+        customerDetails.classList.remove('hidden');
+    }
+    
+    function hideCustomerDetails() {
+        if (customerDetails) {
+            customerDetails.classList.add('hidden');
+        }
+    }
+    
+    function addNewCustomer() {
+        const name = prompt('Enter customer name:');
+        if (!name) return;
+        
+        const email = prompt('Enter customer email:');
+        if (!email) return;
+        
+        const phone = prompt('Enter customer phone (optional):');
+        const address = prompt('Enter customer address (optional):');
+        
+        const customerData = {
+            name: name,
+            email: email,
+            phone: phone || '',
+            address: address || ''
+        };
+        
+        fetch('/api/customers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(customerData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Customer added successfully!');
+                loadCustomers(); // Reload customers
+                // Select the new customer
+                selectedCustomerId = data.customer.id;
+                customerSelect.value = data.customer.id;
+                handleCustomerSelection();
+            } else {
+                alert(data.error || 'Failed to add customer');
+            }
+        })
+        .catch(error => {
+            console.error('Error adding customer:', error);
+            alert('An error occurred while adding the customer');
+        });
+    }
+    
+    function editSelectedCustomer() {
+        if (!selectedCustomerId) return;
+        
+        const customer = allCustomers.find(c => c.id == selectedCustomerId);
+        if (!customer) return;
+        
+        const name = prompt('Enter customer name:', customer.name);
+        if (!name) return;
+        
+        const email = prompt('Enter customer email:', customer.email);
+        if (!email) return;
+        
+        const phone = prompt('Enter customer phone:', customer.phone);
+        const address = prompt('Enter customer address:', customer.address);
+        
+        const customerData = {
+            name: name,
+            email: email,
+            phone: phone || '',
+            address: address || ''
+        };
+        
+        fetch(`/api/customers/${selectedCustomerId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(customerData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Customer updated successfully!');
+                loadCustomers(); // Reload customers
+                handleCustomerSelection(); // Update display
+            } else {
+                alert(data.error || 'Failed to update customer');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating customer:', error);
+            alert('An error occurred while updating the customer');
+        });
+    }
+</script>
+{% endblock %}

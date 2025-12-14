@@ -1,0 +1,709 @@
+{% extends "base_new.html" %}
+
+{% block page_type %}settings{% endblock %}
+
+{% block title %}Settings - JRF System Panel{% endblock %}
+
+{% block page_title %}System Settings{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-section {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .settings-section:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .toggle-switch {
+        position: relative;
+        width: 48px;
+        height: 24px;
+    }
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 24px;
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    input:checked + .slider {
+        background-color: #3B82F6;
+    }
+    input:checked + .slider:before {
+        transform: translateX(24px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">System Settings</h1>
+        <div class="flex space-x-3">
+            <button onclick="exportSettings()" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
+                <i class="fas fa-download mr-2"></i>Export
+            </button>
+            <label for="importFile" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors cursor-pointer">
+                <i class="fas fa-upload mr-2"></i>Import
+            </label>
+            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importSettings(event)">
+            <button onclick="resetSettings()" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
+                <i class="fas fa-undo mr-2"></i>Reset to Defaults
+            </button>
+            <button onclick="saveAllSettings()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                <i class="fas fa-save mr-2"></i>Save All Settings
+            </button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Settings Navigation -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-lg shadow-md p-4">
+                <nav class="space-y-2">
+                    <button onclick="showSection('general')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors bg-blue-50 text-blue-600">
+                        <i class="fas fa-cog mr-3"></i>General Settings
+                    </button>
+                    <button onclick="showSection('inventory')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-boxes mr-3"></i>Inventory Settings
+                    </button>
+                    <button onclick="showSection('sales')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-shopping-cart mr-3"></i>Sales Settings
+                    </button>
+                    <button onclick="showSection('notifications')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-bell mr-3"></i>Notifications
+                    </button>
+                    <button onclick="showSection('backup')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-database mr-3"></i>Backup & Restore
+                    </button>
+                    <button onclick="showSection('security')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-shield-alt mr-3"></i>Security
+                    </button>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Settings Content -->
+        <div class="lg:col-span-2">
+            <!-- General Settings -->
+            <div id="general-section" class="settings-section bg-white rounded-lg shadow-md p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">General Settings</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="general-store_name" class="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
+                        <input type="text" id="general-store_name" value="{{ settings.get('general', {}).get('store_name', {}).get('value', 'JRF Motorcycle Parts & Accessories') }}" 
+                               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onchange="markSectionAsChanged('general')">
+                    </div>
+                    
+                    <div>
+                        <label for="general-store_address" class="block text-sm font-medium text-gray-700 mb-1">Store Address</label>
+                        <textarea id="general-store_address" rows="3" 
+                                  class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  onchange="markSectionAsChanged('general')">{{ settings.get('general', {}).get('store_address', {}).get('value', '123 Main Street, Manila, Philippines') }}</textarea>
+                    </div>
+                    
+                    <div>
+                        <label for="general-contact_number" class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                        <input type="tel" id="general-contact_number" value="{{ settings.get('general', {}).get('contact_number', {}).get('value', '+63 2 1234 5678') }}" 
+                               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onchange="markSectionAsChanged('general')">
+                    </div>
+                    
+                    <div>
+                        <label for="general-email_address" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                        <input type="email" id="general-email_address" value="{{ settings.get('general', {}).get('email_address', {}).get('value', 'info@jrfmotorparts.com') }}" 
+                               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onchange="markSectionAsChanged('general')">
+                    </div>
+                    
+                    <div>
+                        <label for="general-currency" class="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                        <select id="general-currency" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onchange="markSectionAsChanged('general')">
+                            <option value="PHP" {% if settings.get('general', {}).get('currency', {}).get('value') == 'PHP' %}selected{% endif %}>Philippine Peso (₱)</option>
+                            <option value="USD" {% if settings.get('general', {}).get('currency', {}).get('value') == 'USD' %}selected{% endif %}>US Dollar ($)</option>
+                            <option value="EUR" {% if settings.get('general', {}).get('currency', {}).get('value') == 'EUR' %}selected{% endif %}>Euro (€)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="general-timezone" class="block text-sm font-medium text-gray-700 mb-1">Time Zone</label>
+                        <select id="general-timezone" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onchange="markSectionAsChanged('general')">
+                            <option value="Asia/Manila" {% if settings.get('general', {}).get('timezone', {}).get('value') == 'Asia/Manila' %}selected{% endif %}>Asia/Manila (GMT+8)</option>
+                            <option value="UTC" {% if settings.get('general', {}).get('timezone', {}).get('value') == 'UTC' %}selected{% endif %}>UTC</option>
+                            <option value="America/New_York" {% if settings.get('general', {}).get('timezone', {}).get('value') == 'America/New_York' %}selected{% endif %}>America/New_York</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Settings -->
+            <div id="inventory-section" class="settings-section bg-white rounded-lg shadow-md p-6 hidden">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Inventory Settings</h3>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="inventory-low_stock_alert" class="block text-sm font-medium text-gray-700">Low Stock Alerts</label>
+                            <p class="text-sm text-gray-500">Get notified when items are running low</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="inventory-low_stock_alert" 
+                                   {% if settings.get('inventory', {}).get('low_stock_alert', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('inventory')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label for="inventory-low_stock_threshold" class="block text-sm font-medium text-gray-700 mb-1">Low Stock Threshold</label>
+                        <input type="number" id="inventory-low_stock_threshold" 
+                               value="{{ settings.get('inventory', {}).get('low_stock_threshold', {}).get('value', '5') }}" min="1" 
+                               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onchange="markSectionAsChanged('inventory')">
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="inventory-auto_generate_sku" class="block text-sm font-medium text-gray-700">Auto-Generate SKU</label>
+                            <p class="text-sm text-gray-500">Automatically create SKU numbers for new products</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="inventory-auto_generate_sku" 
+                                   {% if settings.get('inventory', {}).get('auto_generate_sku', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('inventory')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="inventory-track_serial_numbers" class="block text-sm font-medium text-gray-700">Track Serial Numbers</label>
+                            <p class="text-sm text-gray-500">Enable serial number tracking for high-value items</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="inventory-track_serial_numbers" 
+                                   {% if settings.get('inventory', {}).get('track_serial_numbers', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('inventory')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sales Settings -->
+            <div id="sales-section" class="settings-section bg-white rounded-lg shadow-md p-6 hidden">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Sales Settings</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label for="sales-tax_rate" class="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
+                        <input type="number" id="sales-tax_rate" value="{{ settings.get('sales', {}).get('tax_rate', {}).get('value', '12') }}" step="0.1" min="0" max="100"
+                               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onchange="markSectionAsChanged('sales')">
+                    </div>
+                    
+                    <div>
+                        <label for="sales-default_payment_method" class="block text-sm font-medium text-gray-700 mb-1">Default Payment Method</label>
+                        <select id="sales-default_payment_method" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onchange="markSectionAsChanged('sales')">
+                            <option value="cash" {% if settings.get('sales', {}).get('default_payment_method', {}).get('value') == 'cash' %}selected{% endif %}>Cash</option>
+                            <option value="card" {% if settings.get('sales', {}).get('default_payment_method', {}).get('value') == 'card' %}selected{% endif %}>Credit Card</option>
+                            <option value="gcash" {% if settings.get('sales', {}).get('default_payment_method', {}).get('value') == 'gcash' %}selected{% endif %}>GCash</option>
+                            <option value="bank" {% if settings.get('sales', {}).get('default_payment_method', {}).get('value') == 'bank' %}selected{% endif %}>Bank Transfer</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="sales-enable_receipts" class="block text-sm font-medium text-gray-700">Print Receipts Automatically</label>
+                            <p class="text-sm text-gray-500">Auto-print receipts after each sale</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="sales-enable_receipts" 
+                                   {% if settings.get('sales', {}).get('enable_receipts', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('sales')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="sales-email_receipts" class="block text-sm font-medium text-gray-700">Email Receipts</label>
+                            <p class="text-sm text-gray-500">Send receipt copies to customers</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="sales-email_receipts" 
+                                   {% if settings.get('sales', {}).get('email_receipts', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('sales')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications Settings -->
+            <div id="notifications-section" class="settings-section bg-white rounded-lg shadow-md p-6 hidden">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Notification Settings</h3>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="notifications-low_stock_email" class="block text-sm font-medium text-gray-700">Low Stock Alerts</label>
+                            <p class="text-sm text-gray-500">Notify when items are below threshold</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifications-low_stock_email" 
+                                   {% if settings.get('notifications', {}).get('low_stock_email', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('notifications')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="notifications-sales_email" class="block text-sm font-medium text-gray-700">Sales Notifications</label>
+                            <p class="text-sm text-gray-500">Get notified for new sales</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifications-sales_email" 
+                                   {% if settings.get('notifications', {}).get('sales_email', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('notifications')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="notifications-email_notifications" class="block text-sm font-medium text-gray-700">Email Notifications</label>
+                            <p class="text-sm text-gray-500">Enable email notifications</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifications-email_notifications" 
+                                   {% if settings.get('notifications', {}).get('email_notifications', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('notifications')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="notifications-backup_reminder" class="block text-sm font-medium text-gray-700">Backup Reminders</label>
+                            <p class="text-sm text-gray-500">Get reminded about backups</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="notifications-backup_reminder" 
+                                   {% if settings.get('notifications', {}).get('backup_reminder', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('notifications')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label for="notifications-notification_email" class="block text-sm font-medium text-gray-700 mb-1">Notification Email</label>
+                        <input type="email" id="notifications-notification_email" 
+                               value="{{ settings.get('notifications', {}).get('notification_email', {}).get('value', 'admin@jrfmotorparts.com') }}"
+                               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onchange="markSectionAsChanged('notifications')">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backup & Restore Settings -->
+            <div id="backup-section" class="settings-section bg-white rounded-lg shadow-md p-6 hidden">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Backup & Restore</h3>
+                
+                <div class="space-y-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 class="font-medium text-blue-800 mb-2">Last Backup</h4>
+                        <p class="text-sm text-blue-600">{{ last_backup }}</p>
+                    </div>
+                    
+                    <div class="flex space-x-3">
+                        <button onclick="createBackup()" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-download mr-2"></i>Create Backup
+                        </button>
+                        <button onclick="restoreBackup()" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                            <i class="fas fa-upload mr-2"></i>Restore Backup
+                        </button>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="backup-auto_backup" class="block text-sm font-medium text-gray-700">Automatic Backups</label>
+                            <p class="text-sm text-gray-500">Schedule automatic daily backups</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="backup-auto_backup" 
+                                   {% if settings.get('backup', {}).get('auto_backup', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('backup')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label for="backup-backup_frequency" class="block text-sm font-medium text-gray-700 mb-1">Backup Frequency</label>
+                        <select id="backup-backup_frequency" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onchange="markSectionAsChanged('backup')">
+                            <option value="daily" {% if settings.get('backup', {}).get('backup_frequency', {}).get('value') == 'daily' %}selected{% endif %}>Daily</option>
+                            <option value="weekly" {% if settings.get('backup', {}).get('backup_frequency', {}).get('value') == 'weekly' %}selected{% endif %}>Weekly</option>
+                            <option value="monthly" {% if settings.get('backup', {}).get('backup_frequency', {}).get('value') == 'monthly' %}selected{% endif %}>Monthly</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="backup-backup_retention" class="block text-sm font-medium text-gray-700 mb-1">Backup Retention (days)</label>
+                        <input type="number" id="backup-backup_retention" 
+                               value="{{ settings.get('backup', {}).get('backup_retention', {}).get('value', '30') }}" min="1" max="365"
+                               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onchange="markSectionAsChanged('backup')">
+                    </div>
+                    
+                    <div>
+                        <label for="backup-backup_location" class="block text-sm font-medium text-gray-700 mb-1">Backup Location</label>
+                        <input type="text" id="backup-backup_location" 
+                               value="{{ settings.get('backup', {}).get('backup_location', {}).get('value', './backups') }}"
+                               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onchange="markSectionAsChanged('backup')">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Settings -->
+            <div id="security-section" class="settings-section bg-white rounded-lg shadow-md p-6 hidden">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Security Settings</h3>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="security-session_timeout" class="block text-sm font-medium text-gray-700">Session Timeout</label>
+                            <p class="text-sm text-gray-500">Automatically log out after inactivity</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="security-session_timeout" 
+                                   {% if settings.get('security', {}).get('session_timeout', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('security')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label for="security-session_duration" class="block text-sm font-medium text-gray-700 mb-1">Session Duration (minutes)</label>
+                        <input type="number" id="security-session_duration" 
+                               value="{{ settings.get('security', {}).get('session_timeout', {}).get('value', '30') }}" min="5" max="480"
+                               class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onchange="markSectionAsChanged('security')">
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="security-password_min_length" class="block text-sm font-medium text-gray-700">Password Min Length</label>
+                            <p class="text-sm text-gray-500">Minimum password length requirement</p>
+                        </div>
+                        <input type="number" id="security-password_min_length" 
+                               value="{{ settings.get('security', {}).get('password_min_length', {}).get('value', '8') }}" min="4" max="50"
+                               class="w-20 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onchange="markSectionAsChanged('security')">
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="security-require_password_change" class="block text-sm font-medium text-gray-700">Require Password Change</label>
+                            <p class="text-sm text-gray-500">Force password change on first login</p>
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="security-require_password_change" 
+                                   {% if settings.get('security', {}).get('require_password_change', {}).get('value') == 'true' %}checked{% endif %}
+                                   onchange="markSectionAsChanged('security')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label for="security-max_login_attempts" class="block text-sm font-medium text-gray-700">Max Login Attempts</label>
+                            <p class="text-sm text-gray-500">Maximum failed login attempts before lockout</p>
+                        </div>
+                        <input type="number" id="security-max_login_attempts" 
+                               value="{{ settings.get('security', {}).get('login_attempts', {}).get('value', '3') }}" min="1" max="10"
+                               class="w-20 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               onchange="markSectionAsChanged('security')">
+                    </div>
+                    
+                    <div class="border-t pt-4">
+                        <button onclick="changePassword()" class="w-full bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 transition-colors">
+                            <i class="fas fa-key mr-2"></i>Change Admin Password
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Global variables
+    let changedSections = new Set();
+    let currentSection = 'general';
+
+    // Initialize settings
+    document.addEventListener('DOMContentLoaded', function() {
+        showSection('general');
+    });
+
+    // Section navigation
+    function showSection(section) {
+        // Hide all sections
+        document.querySelectorAll('.settings-section').forEach(el => {
+            el.classList.add('hidden');
+        });
+        
+        // Remove active state from all nav buttons
+        document.querySelectorAll('.settings-nav-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-50', 'text-blue-600');
+        });
+        
+        // Show selected section
+        const targetSection = document.getElementById(section + '-section');
+        if (targetSection) {
+            targetSection.classList.remove('hidden');
+        }
+        
+        // Add active state to clicked button
+        const activeBtn = document.querySelector(`[onclick="showSection('${section}')"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('bg-blue-50', 'text-blue-600');
+        }
+        
+        currentSection = section;
+    }
+
+    // Mark section as changed
+    function markSectionAsChanged(section) {
+        changedSections.add(section);
+        console.log(`Section ${section} marked as changed`);
+    }
+
+    // Collect settings from a section
+    function collectSectionSettings(section) {
+        const settings = {};
+        const sectionElement = document.getElementById(section + '-section');
+        
+        if (!sectionElement) return settings;
+        
+        // Collect all inputs in the section
+        const inputs = sectionElement.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            const key = input.id.replace(section + '-', '');
+            if (input.type === 'checkbox') {
+                settings[key] = input.checked ? 'true' : 'false';  // Convert boolean to string
+            } else if (input.type === 'number') {
+                settings[key] = parseFloat(input.value) || 0;
+            } else {
+                settings[key] = input.value;
+            }
+        });
+        
+        return settings;
+    }
+
+    // Save all settings
+    async function saveAllSettings() {
+        try {
+            const allSettings = {};
+            
+            // Collect all settings from all sections
+            const sections = ['general', 'inventory', 'sales', 'notifications', 'backup', 'security'];
+            for (const section of sections) {
+                allSettings[section] = collectSectionSettings(section);
+            }
+            
+            const response = await fetch('/api/settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(allSettings)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Clear changed sections
+                changedSections.clear();
+                alert('Settings saved successfully!');
+            } else {
+                throw new Error(data.error || 'Failed to save settings');
+            }
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            alert('Failed to save settings: ' + error.message);
+        }
+    }
+
+    // Export settings
+    async function exportSettings() {
+        try {
+            const response = await fetch('/api/settings/export');
+            const data = await response.json();
+            
+            // Create and download file
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `settings_export_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            alert('Settings exported successfully!');
+        } catch (error) {
+            console.error('Error exporting settings:', error);
+            alert('Failed to export settings');
+        }
+    }
+
+    // Import settings
+    async function importSettings(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const response = await fetch('/api/settings/import', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                alert('Settings imported successfully! Please refresh the page.');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                throw new Error(data.error || 'Failed to import settings');
+            }
+        } catch (error) {
+            console.error('Error importing settings:', error);
+            alert('Failed to import settings: ' + error.message);
+        }
+        
+        // Reset file input
+        event.target.value = '';
+    }
+
+    // Reset settings
+    async function resetSettings() {
+        if (!confirm('Are you sure you want to reset all settings to defaults? This action cannot be undone.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/settings/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                alert('Settings reset to defaults!');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                throw new Error(data.error || 'Failed to reset settings');
+            }
+        } catch (error) {
+            console.error('Error resetting settings:', error);
+            alert('Failed to reset settings: ' + error.message);
+        }
+    }
+
+    // Create backup
+    async function createBackup() {
+        try {
+            const response = await fetch('/api/backup', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                alert('Backup created successfully!');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                throw new Error(data.error || 'Backup failed');
+            }
+        } catch (error) {
+            console.error('Error creating backup:', error);
+            alert('Failed to create backup: ' + error.message);
+        }
+    }
+
+    // Restore backup (placeholder - backend restore implementation not yet provided)
+    function restoreBackup() {
+        alert('Restore backup is not implemented yet. Please implement the restore API before using this feature.');
+    }
+
+    // Test database connection
+    async function testConnection() {
+        try {
+            const response = await fetch('/api/settings');
+            if (response.ok) {
+                alert('Database connection successful!');
+            } else {
+                throw new Error('Connection failed');
+            }
+        } catch (error) {
+            console.error('Connection test failed:', error);
+            alert('Database connection failed!');
+        }
+    }
+
+    // Initialize with general section
+    document.addEventListener('DOMContentLoaded', function() {
+        showSection('general');
+    });
+</script>
+{% endblock %}

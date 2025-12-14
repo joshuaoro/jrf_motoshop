@@ -1,0 +1,267 @@
+{% extends "base_new.html" %}
+
+{% block page_type %}customers{% endblock %}
+
+{% block title %}Customers - JRF System Panel{% endblock %}
+
+{% block page_title %}Customer Management{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Customer Management</h1>
+        <button id="addCustomerBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors cursor-pointer">
+            <i class="fas fa-plus mr-2"></i>Add Customer
+        </button>
+    </div>
+
+    <!-- Search and filter section -->
+    <div class="bg-white shadow rounded-lg p-4 mb-6">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+            <div class="relative w-full md:w-1/3 mb-4 md:mb-0">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input type="text" id="searchInput" class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Search customers...">
+            </div>
+        </div>
+    </div>
+
+    <!-- Customers table -->
+    <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200" id="customersTable">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sales</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Spent</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for customer in customers %}
+                    <tr data-id="{{ customer.id }}">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user text-blue-600"></i>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{ customer.name }}</div>
+                                    <div class="text-sm text-gray-500">{{ customer.address or 'No address' }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ customer.email or 'N/A' }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">{{ customer.phone or 'N/A' }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium customer-sales">{{ customer.total_sales }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-bold text-green-600 customer-spent">₱{{ "%.2f"|format(customer.total_spent) }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button data-action="edit" data-customer-id="{{ customer.id }}" class="text-blue-600 hover:text-blue-900 mr-3 transition-colors cursor-pointer" type="button">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button data-action="delete" data-customer-id="{{ customer.id }}" class="text-red-600 hover:text-red-900 transition-colors cursor-pointer" type="button">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                            No customers found. <a href="#" id="addFirstCustomer" class="text-blue-600 hover:text-blue-800">Add your first customer</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Modal -->
+<div id="customerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg max-w-md w-full p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-900" id="modalTitle">Add Customer</h3>
+                <button type="button" onclick="closeCustomerModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="customerForm">
+                <div class="space-y-4">
+                    <div>
+                        <label for="customerName" class="block text-sm font-medium text-gray-700">Name *</label>
+                        <input type="text" id="customerName" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="customerEmail" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" id="customerEmail" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="customerPhone" class="block text-sm font-medium text-gray-700">Phone</label>
+                        <input type="tel" id="customerPhone" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="customerAddress" class="block text-sm font-medium text-gray-700">Address</label>
+                        <textarea id="customerAddress" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+                    </div>
+                </div>
+                
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeCustomerModal()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                        Save Customer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentCustomerId = null;
+
+// Customer management functions
+function openCustomerModal(customerId = null) {
+    currentCustomerId = customerId;
+    const modal = document.getElementById('customerModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const form = document.getElementById('customerForm');
+    
+    if (customerId) {
+        modalTitle.textContent = 'Edit Customer';
+        // Load customer data
+        fetch(`/api/customers/${customerId}`)
+            .then(response => response.json())
+            .then(customer => {
+                document.getElementById('customerName').value = customer.name;
+                document.getElementById('customerEmail').value = customer.email || '';
+                document.getElementById('customerPhone').value = customer.phone || '';
+                document.getElementById('customerAddress').value = customer.address || '';
+            });
+    } else {
+        modalTitle.textContent = 'Add Customer';
+        form.reset();
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+function closeCustomerModal() {
+    document.getElementById('customerModal').classList.add('hidden');
+    currentCustomerId = null;
+}
+
+function saveCustomer(event) {
+    event.preventDefault();
+    
+    const customerData = {
+        name: document.getElementById('customerName').value,
+        email: document.getElementById('customerEmail').value,
+        phone: document.getElementById('customerPhone').value,
+        address: document.getElementById('customerAddress').value
+    };
+    
+    const url = currentCustomerId ? `/api/customers/${currentCustomerId}` : '/api/customers';
+    const method = currentCustomerId ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(customerData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeCustomerModal();
+            location.reload();
+        } else {
+            alert(data.message || 'Failed to save customer');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving customer:', error);
+        alert('Failed to save customer');
+    });
+}
+
+function deleteCustomer(customerId) {
+    if (confirm('Are you sure you want to delete this customer?')) {
+        fetch(`/api/customers/${customerId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Failed to delete customer');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting customer:', error);
+            alert('Failed to delete customer');
+        });
+    }
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Add customer button
+    document.getElementById('addCustomerBtn').addEventListener('click', () => openCustomerModal());
+    document.getElementById('addFirstCustomer').addEventListener('click', () => openCustomerModal());
+    
+    // Customer form submission
+    document.getElementById('customerForm').addEventListener('submit', saveCustomer);
+    
+    // Action buttons
+    document.addEventListener('click', function(e) {
+        const button = e.target.closest('button');
+        if (button && button.dataset.action) {
+            const customerId = button.dataset.customerId;
+            if (customerId) {
+                if (button.dataset.action === 'edit') {
+                    openCustomerModal(customerId);
+                } else if (button.dataset.action === 'delete') {
+                    deleteCustomer(customerId);
+                }
+            }
+        }
+    });
+    
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#customersTable tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(searchTerm) ? '' : 'none';
+        });
+    });
+});
+</script>
+{% endblock %}
