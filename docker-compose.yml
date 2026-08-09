@@ -1,0 +1,136 @@
+# ============================================================
+# JRF Motorcycle Parts
+#
+#   docker compose up -d                  app + redis (Supabase for the DB)
+#   docker compose --profile workers up   ... plus celery worker and beat
+#   docker compose --profile production up ... plus the nginx reverse proxy
+#
+# Copy .env.example to .env first - SECRET_KEY and DATABASE_URL (the Supabase
+# pooler) are required and intentionally have no defaults. There is no bundled
+# Postgres: Supabase PostgreSQL is the single source of truth for all data.
+# ============================================================
+
+x-app-env: &app-env
+  FLASK_ENV: ${FLASK_ENV:-production}
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set in .env}
+  # Supabase transaction pooler connection string. The password is read from
+  # the environment via DATABASE_URL - it is never committed to this file, e.g.
+  #   postgresql://postgres.<project>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres
+  DATABASE_URL: ${DATABASE_URL:?DATABASE_URL (Supabase) must be set in .env}
+  REDIS_URL: redis://redis:6379/0
+  # Share rate-limit counters across workers instead of per-process memory.
+  RATELIMIT_STORAGE_URI: redis://redis:6379/1
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+x-app-build: &app-build
+  build:
+    context: .
+    dockerfile: Dockerfile
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: jrf_redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks: [jrf_network]
+
+  # Applies pending Alembic migrations to Supabase, then exits. The app waits
+  # for it to finish so no worker ever serves traffic against an outdated schema.
+  migrate:
+    <<: *app-build
+    container_name: jrf_migrate
+    command: ["flask", "--app", "wsgi", "db", "upgrade"]
+    environment: *app-env
+    restart: "no"
+    networks: [jrf_network]
+
+  app:
+    <<: *app-build
+    container_name: jrf_app
+    environment: *app-env
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+    restart: unless-stopped
+    networks: [jrf_network]
+
+  celery:
+    <<: *app-build
+    container_name: jrf_celery
+    # Module path is app.tasks.celery_app, and the Celery instance inside it
+    # is named `celery`.
+    command: ["celery", "-A", "app.tasks.celery_app:celery", "worker", "--loglevel=info"]
+    environment: *app-env
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+    restart: unless-stopped
+    profiles: [workers]
+    networks: [jrf_network]
+
+  celery-beat:
+    <<: *app-build
+    container_name: jrf_celery_beat
+    command:
+      - celery
+      - -A
+      - app.tasks.celery_app:celery
+      - beat
+      - --loglevel=info
+      # Keep the schedule file on a writable path owned by appuser.
+      - --schedule=/app/logs/celerybeat-schedule
+    environment: *app-env
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    profiles: [workers]
+    networks: [jrf_network]
+
+  nginx:
+    image: nginx:alpine
+    container_name: jrf_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/var/www/static:ro
+      # Create ./ssl with fullchain.pem and privkey.pem before enabling TLS.
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+    profiles: [production]
+    networks: [jrf_network]
+
+volumes:
+  redis_data:
+
+networks:
+  jrf_network:
+    driver: bridge

@@ -166,16 +166,17 @@ class RealtimeDB {
         const activitiesContainer = document.getElementById('recentActivities');
         if (!activitiesContainer) return;
 
+        const esc = RealtimeUpdater.escapeHtml;
         activitiesContainer.innerHTML = activities.map(activity => `
             <div class="flex items-center p-3 bg-gray-50 rounded-lg">
                 <div class="flex-shrink-0">
-                    <div class="w-8 h-8 ${activity.icon_bg} rounded-full flex items-center justify-center">
-                        <i class="${activity.icon} text-white text-xs"></i>
+                    <div class="w-8 h-8 ${esc(activity.icon_bg)} rounded-full flex items-center justify-center">
+                        <i class="${esc(activity.icon)} text-white text-xs"></i>
                     </div>
                 </div>
                 <div class="ml-3">
-                    <p class="text-sm text-gray-600">${activity.message}</p>
-                    <p class="text-xs text-gray-500">${this.formatTime(activity.timestamp)}</p>
+                    <p class="text-sm text-gray-600">${esc(activity.message)}</p>
+                    <p class="text-xs text-gray-500">${esc(this.formatTime(activity.timestamp))}</p>
                 </div>
             </div>
         `).join('');
@@ -205,13 +206,14 @@ class RealtimeDB {
         const tbody = document.querySelector('#recentSalesTable tbody');
         if (!tbody) return;
 
+        const esc = RealtimeUpdater.escapeHtml;
         tbody.innerHTML = sales.map(sale => `
             <tr>
-                <td>${sale.id}</td>
-                <td>${this.formatCurrency(sale.total_amount)}</td>
-                <td>${sale.payment_method}</td>
-                <td>${sale.staff_name}</td>
-                <td>${this.formatTime(sale.created_at)}</td>
+                <td>${esc(sale.id)}</td>
+                <td>${esc(this.formatCurrency(sale.total_amount))}</td>
+                <td>${esc(sale.payment_method)}</td>
+                <td>${esc(sale.staff_name)}</td>
+                <td>${esc(this.formatTime(sale.sale_date))}</td>
             </tr>
         `).join('');
     }
@@ -220,18 +222,26 @@ class RealtimeDB {
         const container = document.getElementById('notificationsList');
         if (!container) return;
 
-        container.innerHTML = notifications.map(notification => `
-            <div class="notification-item p-3 border-b hover:bg-gray-50 ${notification.type}">
+        const esc = RealtimeUpdater.escapeHtml;
+        container.innerHTML = notifications.map(notification => {
+            // action_url goes into an href, so it needs URL vetting on top of
+            // HTML escaping - escaping alone would still allow javascript:.
+            const href = RealtimeUpdater.safeUrl(notification.action_url);
+            const link = href
+                ? `<a href="${esc(href)}" class="text-blue-600 hover:text-blue-800 text-sm">View</a>`
+                : '';
+            return `
+            <div class="notification-item p-3 border-b hover:bg-gray-50 ${esc(notification.type)}">
                 <div class="flex justify-between items-start">
                     <div>
-                        <h4 class="font-medium text-gray-800">${notification.title}</h4>
-                        <p class="text-sm text-gray-600">${notification.message}</p>
-                        <p class="text-xs text-gray-500 mt-1">${this.formatTime(notification.created_at)}</p>
+                        <h4 class="font-medium text-gray-800">${esc(notification.title)}</h4>
+                        <p class="text-sm text-gray-600">${esc(notification.message)}</p>
+                        <p class="text-xs text-gray-500 mt-1">${esc(this.formatTime(notification.created_at))}</p>
                     </div>
-                    ${notification.action_url ? `<a href="${notification.action_url}" class="text-blue-600 hover:text-blue-800 text-sm">View</a>` : ''}
+                    ${link}
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     }
 
     updateNotificationBadge(count) {
@@ -265,6 +275,39 @@ class RealtimeDB {
         }
     }
 
+    // ------------------------------------------------------------------
+    // Escaping helpers
+    //
+    // Several panels below build markup with innerHTML from API JSON, and
+    // that JSON carries user-supplied text: part names, notification bodies,
+    // and staff display names (which a user can set on their own profile).
+    // Without escaping, any of those is a stored XSS that fires in an
+    // administrator's browser.
+    //
+    // The implementations live in api.js, which base_new.html loads first.
+    // These are thin delegates so there is one definition to audit, with a
+    // safe fallback in case this file is ever loaded standalone.
+    // ------------------------------------------------------------------
+    static escapeHtml(value) {
+        if (window.JRF) return window.JRF.escapeHtml(value);
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    /** Allow only same-origin relative links; reject javascript:/data: URLs. */
+    static safeUrl(value) {
+        if (window.JRF) return window.JRF.safeUrl(value);
+        if (!value) return null;
+        const url = String(value).trim();
+        if (!url.startsWith('/') || url.startsWith('//')) return null;
+        return url;
+    }
+
     // Utility Methods
     formatCurrency(amount) {
         // Get currency symbol from settings (could be passed from template)
@@ -292,18 +335,36 @@ class RealtimeDB {
     // Fetch utility with error handling
     async fetch(url, options = {}) {
         try {
-            const response = await fetch(url, {
+            const response = await window.fetch(url, {
                 ...options,
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                     ...options.headers
                 }
             });
-            
+
+            // An expired session used to leave every poller retrying forever
+            // and spraying console errors. Stop the timers and send the user
+            // to the login page instead.
+            if (response.status === 401) {
+                this.clearAllIntervals();
+                window.location.href =
+                    '/login?next=' + encodeURIComponent(window.location.pathname);
+                throw new Error('Session expired');
+            }
+
+            // Back off rather than hammering an endpoint that is rate limited.
+            if (response.status === 429) {
+                this.clearAllIntervals();
+                console.warn('Rate limited; realtime updates paused.');
+                throw new Error('Rate limited');
+            }
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            
+
             return await response.json();
         } catch (error) {
             console.error(`Fetch error for ${url}:`, error);

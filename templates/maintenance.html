@@ -1,0 +1,392 @@
+{% extends "base_new.html" %}
+
+{% block title %}Maintenance - JRF System Panel{% endblock %}
+
+{% block page_title %}Equipment Maintenance{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+
+    <!-- Header -->
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Equipment Maintenance</h1>
+            <p class="text-sm text-gray-500">Service history and upcoming work for shop equipment.</p>
+        </div>
+        <button type="button" onclick="openLogModal()"
+                class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+            <i class="fas fa-plus mr-2"></i>Log Maintenance
+        </button>
+    </div>
+
+    <!-- Summary -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-5">
+            <p class="text-sm text-gray-500">Total records</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ summary.total }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-5 {% if summary.overdue %}border-2 border-red-200{% endif %}">
+            <p class="text-sm text-gray-500">Overdue</p>
+            <p class="text-2xl font-bold mt-1 {% if summary.overdue %}text-red-600{% else %}text-gray-800{% endif %}">{{ summary.overdue }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-5">
+            <p class="text-sm text-gray-500">Due in 30 days</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ summary.upcoming }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-5">
+            <p class="text-sm text-gray-500">Spend (12 months)</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ summary.spend_12m|peso }}</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" class="bg-white rounded-lg shadow p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+                <label for="type" class="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                <select id="type" name="type" class="w-full px-3 py-2 border rounded-md">
+                    <option value="">All types</option>
+                    {% for type in types %}
+                    <option value="{{ type }}" {% if filters.type == type %}selected{% endif %}>{{ type|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-end">
+                <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" name="overdue" value="true" {% if filters.overdue %}checked{% endif %}
+                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    Overdue only
+                </label>
+            </div>
+            <div class="flex items-end gap-2">
+                <button type="submit" class="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900">
+                    <i class="fas fa-filter mr-2"></i>Apply
+                </button>
+                <a href="{{ url_for('maintenance_web.index') }}" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Clear</a>
+            </div>
+        </div>
+    </form>
+
+    <!-- Table -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Equipment</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Serviced</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Next due</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cost</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for log in logs %}
+                    <tr class="hover:bg-gray-50 {% if log.is_overdue %}bg-red-50{% endif %}">
+                        <td class="px-4 py-3">
+                            <p class="text-sm font-medium text-gray-900">{{ log.equipment_name }}</p>
+                            {% if log.equipment_serial %}<p class="text-xs text-gray-400">{{ log.equipment_serial }}</p>{% endif %}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% set type_colours = {
+                                'preventive': 'bg-green-100 text-green-800',
+                                'corrective': 'bg-yellow-100 text-yellow-800',
+                                'emergency': 'bg-red-100 text-red-800',
+                                'inspection': 'bg-blue-100 text-blue-800'
+                            } %}
+                            <span class="px-2 py-1 text-xs rounded-full capitalize {{ type_colours.get(log.maintenance_type, 'bg-gray-100 text-gray-800') }}">{{ log.maintenance_type }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-700">{{ log.description }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{{ log.maintenance_date|localdt('%Y-%m-%d') }}</td>
+                        <td class="px-4 py-3 text-sm whitespace-nowrap">
+                            {% if log.next_maintenance %}
+                                {% if log.is_overdue %}
+                                <span class="text-red-600 font-medium">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>{{ log.next_maintenance|localdt('%Y-%m-%d') }}
+                                </span>
+                                {% else %}
+                                <span class="text-gray-600">{{ log.next_maintenance|localdt('%Y-%m-%d') }}</span>
+                                {% endif %}
+                            {% else %}
+                            <span class="text-gray-400">&mdash;</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">{{ log.cost|peso }}</td>
+                        <td class="px-4 py-3 text-right whitespace-nowrap">
+                            <button type="button" class="text-blue-600 hover:text-blue-800 mr-3"
+                                    data-log='{{ log|tojson }}' onclick="editLog(this)" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="text-red-600 hover:text-red-800"
+                                    data-log-id="{{ log.id }}" onclick="askDelete(this)" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-4 py-12 text-center">
+                            <i class="fas fa-screwdriver-wrench text-5xl text-gray-300 mb-3"></i>
+                            <p class="text-gray-600 font-medium">No maintenance records</p>
+                            <p class="text-gray-400 text-sm mb-4">Log servicing so upcoming work does not get missed.</p>
+                            <button type="button" onclick="openLogModal()"
+                                    class="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700">
+                                <i class="fas fa-plus mr-2"></i>Log the first record
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if pagination.pages > 1 %}
+        <div class="flex items-center justify-between px-4 py-3 border-t bg-gray-50 text-sm">
+            <span class="text-gray-600">Page {{ pagination.page }} of {{ pagination.pages }} &middot; {{ pagination.total }} total</span>
+            <div class="flex gap-2">
+                {% if pagination.page > 1 %}
+                <a href="{{ url_for('maintenance_web.index', page=pagination.page - 1, type=filters.type) }}"
+                   class="px-3 py-1 border rounded hover:bg-white">Previous</a>
+                {% endif %}
+                {% if pagination.page < pagination.pages %}
+                <a href="{{ url_for('maintenance_web.index', page=pagination.page + 1, type=filters.type) }}"
+                   class="px-3 py-1 border rounded hover:bg-white">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add / Edit modal -->
+<div id="logModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold" id="logModalTitle">Log Maintenance</h3>
+            <button type="button" onclick="closeLogModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div id="logError" class="hidden mb-4 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700"></div>
+
+        <form id="logForm" class="space-y-4">
+            <input type="hidden" id="logId">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="logEquipment" class="block text-sm font-medium text-gray-700 mb-1">Equipment *</label>
+                    <input type="text" id="logEquipment" required class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="logSerial" class="block text-sm font-medium text-gray-700 mb-1">Serial number</label>
+                    <input type="text" id="logSerial" class="w-full px-3 py-2 border rounded-md">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="logType" class="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+                    <select id="logType" required class="w-full px-3 py-2 border rounded-md">
+                        {% for type in types %}
+                        <option value="{{ type }}">{{ type|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="logCost" class="block text-sm font-medium text-gray-700 mb-1">Cost</label>
+                    <input type="number" id="logCost" step="0.01" min="0" value="0"
+                           class="w-full px-3 py-2 border rounded-md">
+                </div>
+            </div>
+
+            <div>
+                <label for="logDescription" class="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                <textarea id="logDescription" rows="2" required class="w-full px-3 py-2 border rounded-md"></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="logDate" class="block text-sm font-medium text-gray-700 mb-1">Date serviced</label>
+                    <input type="date" id="logDate" class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="logNext" class="block text-sm font-medium text-gray-700 mb-1">Next due</label>
+                    <input type="date" id="logNext" class="w-full px-3 py-2 border rounded-md">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="logPerformedBy" class="block text-sm font-medium text-gray-700 mb-1">Performed by</label>
+                    <input type="text" id="logPerformedBy" class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="logVendor" class="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+                    <input type="text" id="logVendor" class="w-full px-3 py-2 border rounded-md">
+                </div>
+            </div>
+
+            <div>
+                <label for="logPart" class="block text-sm font-medium text-gray-700 mb-1">Related part</label>
+                <select id="logPart" class="w-full px-3 py-2 border rounded-md">
+                    <option value="">None</option>
+                    {% for part in parts %}
+                    <option value="{{ part.id }}">{{ part.name }}{% if part.sku %} ({{ part.sku }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="logNotes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea id="logNotes" rows="2" class="w-full px-3 py-2 border rounded-md"></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-2">
+                <button type="button" onclick="closeLogModal()" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
+                <button type="submit" id="logSubmit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save Record</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete confirmation -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-sm text-center">
+        <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+        <h3 class="text-lg font-semibold mb-2">Delete this record?</h3>
+        <p class="text-gray-600 mb-6">This cannot be undone.</p>
+        <div class="flex justify-center space-x-3">
+            <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
+            <button type="button" onclick="confirmDelete()" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Delete</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let deleteTargetId = null;
+
+
+    function showError(message) {
+        const box = document.getElementById('logError');
+        box.textContent = message;
+        box.classList.remove('hidden');
+    }
+
+    function openLogModal() {
+        document.getElementById('logError').classList.add('hidden');
+        document.getElementById('logModalTitle').textContent = 'Log Maintenance';
+        document.getElementById('logForm').reset();
+        document.getElementById('logId').value = '';
+        document.getElementById('logModal').classList.remove('hidden');
+    }
+
+    function editLog(button) {
+        document.getElementById('logError').classList.add('hidden');
+        const log = JSON.parse(button.getAttribute('data-log'));
+
+        document.getElementById('logModalTitle').textContent = 'Edit Maintenance Record';
+        document.getElementById('logId').value = log.id;
+        document.getElementById('logEquipment').value = log.equipment_name || '';
+        document.getElementById('logSerial').value = log.equipment_serial || '';
+        document.getElementById('logType').value = log.maintenance_type;
+        document.getElementById('logCost').value = log.cost;
+        document.getElementById('logDescription').value = log.description || '';
+        document.getElementById('logDate').value =
+            log.maintenance_date ? log.maintenance_date.slice(0, 10) : '';
+        document.getElementById('logNext').value =
+            log.next_maintenance ? log.next_maintenance.slice(0, 10) : '';
+        document.getElementById('logPerformedBy').value = log.performed_by || '';
+        document.getElementById('logVendor').value = log.vendor || '';
+        document.getElementById('logPart').value = log.part_id || '';
+        document.getElementById('logNotes').value = log.notes || '';
+        document.getElementById('logModal').classList.remove('hidden');
+    }
+
+    function closeLogModal() {
+        document.getElementById('logModal').classList.add('hidden');
+    }
+
+    function askDelete(button) {
+        deleteTargetId = button.getAttribute('data-log-id');
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+        deleteTargetId = null;
+    }
+
+    async function confirmDelete() {
+        if (!deleteTargetId) return;
+        try {
+            const response = await fetch(`/api/maintenance/${deleteTargetId}`, {
+                method: 'DELETE',
+                credentials: 'same-origin',
+            });
+            if (!response.ok) {
+                const body = await response.json().catch(() => null);
+                alert(JRF.errorMessage(body, 'Could not delete the record.'));
+                return;
+            }
+            location.reload();
+        } catch (error) {
+            console.error(error);
+            alert('Could not reach the server.');
+        }
+    }
+
+    document.getElementById('logForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        document.getElementById('logError').classList.add('hidden');
+
+        const logId = document.getElementById('logId').value;
+        const partId = document.getElementById('logPart').value;
+        const serviced = document.getElementById('logDate').value;
+        const next = document.getElementById('logNext').value;
+
+        const payload = {
+            equipment_name: document.getElementById('logEquipment').value,
+            equipment_serial: document.getElementById('logSerial').value || null,
+            maintenance_type: document.getElementById('logType').value,
+            description: document.getElementById('logDescription').value,
+            cost: document.getElementById('logCost').value || '0',
+            performed_by: document.getElementById('logPerformedBy').value || null,
+            vendor: document.getElementById('logVendor').value || null,
+            notes: document.getElementById('logNotes').value || null,
+            part_id: partId ? parseInt(partId, 10) : null,
+        };
+        if (serviced) payload.maintenance_date = `${serviced}T00:00:00`;
+        if (next) payload.next_maintenance = `${next}T00:00:00`;
+
+        const submit = document.getElementById('logSubmit');
+        submit.disabled = true;
+        try {
+            const response = await fetch(
+                logId ? `/api/maintenance/${logId}` : '/api/maintenance',
+                {
+                    method: logId ? 'PUT' : 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                }
+            );
+            if (!response.ok) {
+                const body = await response.json().catch(() => null);
+                showError(JRF.errorMessage(body, 'Could not save the record.'));
+                return;
+            }
+            location.reload();
+        } catch (error) {
+            console.error(error);
+            showError('Could not reach the server.');
+        } finally {
+            submit.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

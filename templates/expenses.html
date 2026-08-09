@@ -1,0 +1,366 @@
+{% extends "base_new.html" %}
+
+{% block title %}Expenses - JRF System Panel{% endblock %}
+
+{% block page_title %}Expense Register{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+
+    <!-- Header -->
+    <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Expense Register</h1>
+            <p class="text-sm text-gray-500">Track what the shop spends, by category and period.</p>
+        </div>
+        <button type="button" onclick="openExpenseModal()"
+                class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+            <i class="fas fa-plus mr-2"></i>Record Expense
+        </button>
+    </div>
+
+    <!-- Summary -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-5">
+            <p class="text-sm text-gray-500">This month</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ summary.month_total|peso }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-5">
+            <p class="text-sm text-gray-500">Matching current filters</p>
+            <p class="text-2xl font-bold text-gray-800 mt-1">{{ summary.filtered_total|peso }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ summary.filtered_count }} expense(s)</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-5">
+            <p class="text-sm text-gray-500">Top category</p>
+            {% if summary.by_category %}
+            <p class="text-2xl font-bold text-gray-800 mt-1 capitalize">{{ summary.by_category[0].category }}</p>
+            <p class="text-xs text-gray-400 mt-1">{{ summary.by_category[0].total|peso }}</p>
+            {% else %}
+            <p class="text-2xl font-bold text-gray-300 mt-1">&mdash;</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="GET" class="bg-white rounded-lg shadow p-4 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <div class="md:col-span-2">
+                <label for="search" class="block text-xs font-medium text-gray-600 mb-1">Search</label>
+                <input type="text" id="search" name="search" value="{{ filters.search }}"
+                       placeholder="Description, vendor or receipt no."
+                       class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label for="category" class="block text-xs font-medium text-gray-600 mb-1">Category</label>
+                <select id="category" name="category"
+                        class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">All categories</option>
+                    {% for category in categories %}
+                    <option value="{{ category }}" {% if filters.category == category %}selected{% endif %} class="capitalize">{{ category|title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="start_date" class="block text-xs font-medium text-gray-600 mb-1">From</label>
+                <input type="date" id="start_date" name="start_date" value="{{ filters.start_date }}"
+                       class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label for="end_date" class="block text-xs font-medium text-gray-600 mb-1">To</label>
+                <input type="date" id="end_date" name="end_date" value="{{ filters.end_date }}"
+                       class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-3">
+            <a href="{{ url_for('expenses_web.index') }}" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Clear</a>
+            <button type="submit" class="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-900">
+                <i class="fas fa-filter mr-2"></i>Apply
+            </button>
+        </div>
+    </form>
+
+    <!-- Table -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for expense in expenses %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{{ expense.expense_date|localdt('%Y-%m-%d') }}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 capitalize">{{ expense.category }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-800">{{ expense.description }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">{{ expense.vendor or '-' }}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600 capitalize">{{ expense.payment_method|replace('_', ' ') }}</td>
+                        <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">{{ expense.amount|peso }}</td>
+                        <td class="px-4 py-3 text-right whitespace-nowrap">
+                            <button type="button" class="text-blue-600 hover:text-blue-800 mr-3"
+                                    data-expense='{{ expense|tojson }}' onclick="editExpense(this)" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="text-red-600 hover:text-red-800"
+                                    data-expense-id="{{ expense.id }}" onclick="askDelete(this)" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-4 py-12 text-center">
+                            <i class="fas fa-receipt text-5xl text-gray-300 mb-3"></i>
+                            <p class="text-gray-600 font-medium">No expenses recorded</p>
+                            <p class="text-gray-400 text-sm mb-4">Expenses recorded here feed the profitability and expense reports.</p>
+                            <button type="button" onclick="openExpenseModal()"
+                                    class="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700">
+                                <i class="fas fa-plus mr-2"></i>Record the first expense
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if pagination.pages > 1 %}
+        <div class="flex items-center justify-between px-4 py-3 border-t bg-gray-50 text-sm">
+            <span class="text-gray-600">Page {{ pagination.page }} of {{ pagination.pages }} &middot; {{ pagination.total }} total</span>
+            <div class="flex gap-2">
+                {% if pagination.page > 1 %}
+                <a href="{{ url_for('expenses_web.index', page=pagination.page - 1, **filters) }}"
+                   class="px-3 py-1 border rounded hover:bg-white">Previous</a>
+                {% endif %}
+                {% if pagination.page < pagination.pages %}
+                <a href="{{ url_for('expenses_web.index', page=pagination.page + 1, **filters) }}"
+                   class="px-3 py-1 border rounded hover:bg-white">Next</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add / Edit modal -->
+<div id="expenseModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold" id="expenseModalTitle">Record Expense</h3>
+            <button type="button" onclick="closeExpenseModal()" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div id="expenseError" class="hidden mb-4 p-3 rounded bg-red-50 border border-red-200 text-sm text-red-700"></div>
+
+        <form id="expenseForm" class="space-y-4">
+            <input type="hidden" id="expenseId">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="expenseCategory" class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                    <select id="expenseCategory" required class="w-full px-3 py-2 border rounded-md">
+                        {% for category in categories %}
+                        <option value="{{ category }}">{{ category|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="expenseAmount" class="block text-sm font-medium text-gray-700 mb-1">Amount *</label>
+                    <input type="number" id="expenseAmount" step="0.01" min="0.01" required
+                           class="w-full px-3 py-2 border rounded-md">
+                </div>
+            </div>
+
+            <div>
+                <label for="expenseDescription" class="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                <input type="text" id="expenseDescription" required class="w-full px-3 py-2 border rounded-md">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="expensePaymentMethod" class="block text-sm font-medium text-gray-700 mb-1">Payment method *</label>
+                    <select id="expensePaymentMethod" required class="w-full px-3 py-2 border rounded-md">
+                        {% for method in payment_methods %}
+                        <option value="{{ method }}">{{ method|replace('_', ' ')|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="expenseDate" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="date" id="expenseDate" class="w-full px-3 py-2 border rounded-md">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="expenseVendor" class="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+                    <input type="text" id="expenseVendor" class="w-full px-3 py-2 border rounded-md">
+                </div>
+                <div>
+                    <label for="expenseReceipt" class="block text-sm font-medium text-gray-700 mb-1">Receipt no.</label>
+                    <input type="text" id="expenseReceipt" class="w-full px-3 py-2 border rounded-md">
+                </div>
+            </div>
+
+            <div>
+                <label for="expenseNotes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea id="expenseNotes" rows="2" class="w-full px-3 py-2 border rounded-md"></textarea>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-2">
+                <button type="button" onclick="closeExpenseModal()" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
+                <button type="submit" id="expenseSubmit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save Expense</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete confirmation -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-sm text-center">
+        <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+        <h3 class="text-lg font-semibold mb-2">Delete this expense?</h3>
+        <p class="text-gray-600 mb-6">This cannot be undone.</p>
+        <div class="flex justify-center space-x-3">
+            <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
+            <button type="button" onclick="confirmDelete()" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Delete</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let deleteTargetId = null;
+
+    function showError(message) {
+        const box = document.getElementById('expenseError');
+        box.textContent = message;
+        box.classList.remove('hidden');
+    }
+
+    function clearError() {
+        document.getElementById('expenseError').classList.add('hidden');
+    }
+
+    /** Turn the API's {details: {field: [msg]}} into one readable line. */
+
+    function openExpenseModal() {
+        clearError();
+        document.getElementById('expenseModalTitle').textContent = 'Record Expense';
+        document.getElementById('expenseForm').reset();
+        document.getElementById('expenseId').value = '';
+        document.getElementById('expenseModal').classList.remove('hidden');
+    }
+
+    function editExpense(button) {
+        clearError();
+        const expense = JSON.parse(button.getAttribute('data-expense'));
+
+        document.getElementById('expenseModalTitle').textContent = 'Edit Expense';
+        document.getElementById('expenseId').value = expense.id;
+        document.getElementById('expenseCategory').value = expense.category;
+        document.getElementById('expenseAmount').value = expense.amount;
+        document.getElementById('expenseDescription').value = expense.description || '';
+        document.getElementById('expensePaymentMethod').value = expense.payment_method;
+        document.getElementById('expenseDate').value =
+            expense.expense_date ? expense.expense_date.slice(0, 10) : '';
+        document.getElementById('expenseVendor').value = expense.vendor || '';
+        document.getElementById('expenseReceipt').value = expense.receipt_number || '';
+        document.getElementById('expenseNotes').value = expense.notes || '';
+        document.getElementById('expenseModal').classList.remove('hidden');
+    }
+
+    function closeExpenseModal() {
+        document.getElementById('expenseModal').classList.add('hidden');
+    }
+
+    function askDelete(button) {
+        deleteTargetId = button.getAttribute('data-expense-id');
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+        deleteTargetId = null;
+    }
+
+    async function confirmDelete() {
+        if (!deleteTargetId) return;
+        try {
+            const response = await fetch(`/api/expenses/${deleteTargetId}`, {
+                method: 'DELETE',
+                credentials: 'same-origin',
+            });
+            if (!response.ok) {
+                const payload = await response.json().catch(() => null);
+                alert(JRF.errorMessage(payload, 'Could not delete the expense.'));
+                return;
+            }
+            location.reload();
+        } catch (error) {
+            console.error(error);
+            alert('Could not reach the server.');
+        }
+    }
+
+    document.getElementById('expenseForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        clearError();
+
+        const submit = document.getElementById('expenseSubmit');
+        const expenseId = document.getElementById('expenseId').value;
+        const dateValue = document.getElementById('expenseDate').value;
+
+        const payload = {
+            category: document.getElementById('expenseCategory').value,
+            amount: document.getElementById('expenseAmount').value,
+            description: document.getElementById('expenseDescription').value,
+            payment_method: document.getElementById('expensePaymentMethod').value,
+            vendor: document.getElementById('expenseVendor').value || null,
+            receipt_number: document.getElementById('expenseReceipt').value || null,
+            notes: document.getElementById('expenseNotes').value || null,
+        };
+        // A bare date needs a time component to parse as a datetime.
+        if (dateValue) payload.expense_date = `${dateValue}T00:00:00`;
+
+        submit.disabled = true;
+        try {
+            const response = await fetch(
+                expenseId ? `/api/expenses/${expenseId}` : '/api/expenses',
+                {
+                    method: expenseId ? 'PUT' : 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                }
+            );
+
+            // Success is the 2xx status, not a `success` field - these
+            // endpoints return the saved object.
+            if (!response.ok) {
+                const body = await response.json().catch(() => null);
+                showError(JRF.errorMessage(body, 'Could not save the expense.'));
+                return;
+            }
+            location.reload();
+        } catch (error) {
+            console.error(error);
+            showError('Could not reach the server.');
+        } finally {
+            submit.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

@@ -80,7 +80,7 @@
                     {% else %}
                     <tr>
                         <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
-                            No customers found. <a href="#" id="addFirstCustomer" class="text-blue-600 hover:text-blue-800">Add your first customer</a>
+                            No customers found. <button type="button" id="addFirstCustomer" class="text-blue-600 hover:text-blue-800 font-medium">Add your first customer</button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -230,13 +230,23 @@ function deleteCustomer(customerId) {
 
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Add customer button
-    document.getElementById('addCustomerBtn').addEventListener('click', () => openCustomerModal());
-    document.getElementById('addFirstCustomer').addEventListener('click', () => openCustomerModal());
-    
-    // Customer form submission
-    document.getElementById('customerForm').addEventListener('submit', saveCustomer);
-    
+    /**
+     * Attach a listener only if the element is actually on the page.
+     *
+     * `addFirstCustomer` only renders in the empty state. Calling
+     * addEventListener on the resulting null threw, which aborted the rest of
+     * this handler - so with even one customer present, search, the form and
+     * the row action buttons were all left unwired.
+     */
+    const on = (id, event, handler) => {
+        const element = document.getElementById(id);
+        if (element) element.addEventListener(event, handler);
+    };
+
+    on('addCustomerBtn', 'click', () => openCustomerModal());
+    on('addFirstCustomer', 'click', () => openCustomerModal());
+    on('customerForm', 'submit', saveCustomer);
+
     // Action buttons
     document.addEventListener('click', function(e) {
         const button = e.target.closest('button');
@@ -253,11 +263,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Search functionality
-    document.getElementById('searchInput').addEventListener('input', function(e) {
+    on('searchInput', 'input', function (e) {
         const searchTerm = e.target.value.toLowerCase();
-        const rows = document.querySelectorAll('#customersTable tbody tr');
-        
-        rows.forEach(row => {
+        document.querySelectorAll('#customersTable tbody tr').forEach(row => {
             const text = row.textContent.toLowerCase();
             row.style.display = text.includes(searchTerm) ? '' : 'none';
         });

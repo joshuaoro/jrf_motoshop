@@ -1,0 +1,117 @@
+{% extends "base_new.html" %}
+{% block page_type %}reports{% endblock %}
+{% block title %}Inventory Report - JRF System Panel{% endblock %}
+{% block page_title %}Inventory Report{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table-row:hover { background-color: rgba(37, 99, 235, 0.05); }
+    .badge { padding: 4px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+    .badge-low { background-color: #fee2e2; color: #991b2b; }
+    .badge-ok { background-color: #dcfce7; color: #166534; }
+    .badge-moderate { background-color: #fef3c7; color: #92400e; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">Inventory Report</h1>
+        <button onclick="exportInventory()" class="btn-primary">
+            <i class="fas fa-file-excel mr-2"></i>Export
+        </button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="card p-6 text-center">
+            <div class="text-3xl font-bold text-blue-600 mb-2">{{ total_parts }}</div>
+            <p class="text-sm text-gray-600">Total Active Parts</p>
+        </div>
+        <div class="card p-6 text-center">
+            <div class="text-3xl font-bold text-red-600 mb-2">{{ low_stock_parts }}</div>
+            <p class="text-sm text-gray-600">Low Stock Items</p>
+        </div>
+        <div class="card p-6 text-center">
+            <div class="text-3xl font-bold text-green-600 mb-2">₱{{ "%.2f"|format(total_value|default(0, true)|float) }}</div>
+            <p class="text-sm text-gray-600">Total Inventory Value</p>
+        </div>
+    </div>
+
+    <!-- Low Stock Alerts -->
+    <div class="card p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Low Stock Alerts</h2>
+        <div class="overflow-x-auto" id="low-stock-table">
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-info-circle mr-2"></i>Loading...
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Valuation by Category -->
+    <div class="card p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Inventory by Category</h2>
+        <div class="overflow-x-auto" id="category-table">
+            <div class="text-center py-8 text-gray-500">
+                <i class="fas fa-info-circle mr-2"></i>Loading...
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function loadInventoryReport() {
+    try {
+        // Load low stock items
+        const response = await fetch('/api/parts/low-stock');
+        if (response.ok) {
+            const parts = await response.json();
+            let html = '<table class="min-w-full"><thead><tr class="text-left text-xs font-medium text-gray-500 uppercase"><th class="pb-2">Part</th><th class="pb-2">SKU</th><th class="pb-2 text-right">Stock</th><th class="pb-2">Status</th></tr></thead><tbody class="border-t border-gray-200">';
+            parts.forEach(p => {
+                let status = 'low'; let cls = 'badge-low';
+                if (p.stock_quantity <= 0) { status = 'out_of_stock'; cls = 'badge-low'; }
+                else if (p.stock_quantity >= p.min_stock_level * 2) { status = 'ok'; cls = 'badge-ok'; }
+                else if (p.stock_quantity >= p.min_stock_level) { status = 'moderate'; cls = 'badge-moderate'; }
+                html += `<tr class="table-row"><td class="py-2 font-medium">${escapeHtml(p.name)}</td><td class="py-2 text-sm text-gray-500">${escapeHtml(p.sku || '')}</td><td class="py-2 text-right">${p.stock_quantity}</td><td class="py-2"><span class="badge ${cls}">${status.replace('_', ' ')}</span></td></tr>`;
+            });
+            html += '</tbody></table>';
+            document.querySelector('#low-stock-table').innerHTML = html;
+        }
+    } catch (e) { console.error(e); }
+
+    try {
+        // Load full inventory for category analysis
+        const response2 = await fetch('/api/parts?per_page=100');
+        if (response2.ok) {
+            const data = await response2.json();
+            const parts = data.parts || [];
+            const categories = {};
+            let totalValue = 0;
+            
+            parts.forEach(p => {
+                const cat = p.part_type || 'Other';
+                if (!categories[cat]) categories[cat] = { count: 0, value: 0 };
+                categories[cat].count += 1;
+                categories[cat].value += (p.price || 0) * p.stock_quantity;
+                totalValue += (p.price || 0) * p.stock_quantity;
+            });
+
+            let html = `<table class="min-w-full"><thead><tr class="text-left text-xs font-medium text-gray-500 uppercase"><th class="pb-2">Category</th><th class="pb-2 text-right">Items</th><th class="pb-2 text-right">Value</th></tr></thead><tbody class="border-t border-gray-200">`;
+            for (const [cat, d] of Object.entries(categories)) {
+                html += `<tr class="table-row"><td class="py-2 font-medium">${cat}</td><td class="py-2 text-right">${d.count}</td><td class="py-2 text-right">₱${d.value.toFixed(2)}</td></tr>`;
+            }
+            html += `</tbody><tfoot><tr class="border-t-2"><td class="py-2 font-bold">Total</td><td class="py-2 text-right font-bold">${Object.values(categories).reduce((s,c)=>s+c.count,0)}</td><td class="py-2 text-right font-bold">₱${totalValue.toFixed(2)}</td></tr></tfoot></table>`;
+            document.querySelector('#category-table').innerHTML = html;
+        }
+    } catch (e) { console.error(e); }
+}
+
+function exportInventory() {
+    alert('Export functionality will be available soon.');
+}
+
+document.addEventListener('DOMContentLoaded', loadInventoryReport);
+</script>
+{% endblock %}

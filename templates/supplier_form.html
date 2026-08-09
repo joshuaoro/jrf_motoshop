@@ -1,0 +1,50 @@
+{% extends "base_new.html" %}
+{% block page_type %}suppliers{% endblock %}
+{% block title %}{{ 'Edit Supplier: ' + supplier.name if supplier else 'Add New Supplier' }} - JRF System Panel{% endblock %}
+{% block page_title %}{{ supplier.name if supplier else 'Add New Supplier' }}{% endblock %}
+
+{% block content %}
+<div class="card p-8 max-w-3xl mx-auto">
+    <form method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Supplier Name</label>
+            <input type="text" name="name" required class="input-field w-full" value="{{ supplier.name or '' }}">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
+            <input type="text" name="contact_no" class="input-field w-full" value="{{ supplier.contact_no or '' }}">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <input type="email" name="email" class="input-field w-full" value="{{ supplier.email or '' }}">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Contact Person</label>
+            <input type="text" name="contact_person" class="input-field w-full" value="{{ supplier.contact_person or '' }}">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Payment Terms</label>
+            <input type="text" name="payment_terms" class="input-field w-full" value="{{ supplier.payment_terms or '' }}" placeholder="Net 30, COD, etc.">
+        </div>
+        <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
+            <textarea name="address" rows="3" class="input-field w-full">{{ supplier.address or '' }}</textarea>
+        </div>
+        <div>
+            <label class="flex items-center mt-6">
+                <input type="checkbox" name="is_active" value="true" {% if supplier and supplier.is_active %}checked{% endif %} class="w-4 h-4 text-blue-600">
+                <span class="ml-2 text-sm text-gray-700">Active</span>
+            </label>
+        </div>
+    </form>
+    <div class="mt-8 flex justify-end space-x-4">
+        <a href="{{ url_for('inventory.suppliers') }}" class="btn-secondary">
+            <i class="fas fa-times mr-2"></i>Cancel
+        </a>
+        <button type="submit" class="btn-primary">
+            <i class="fas fa-save mr-2"></i>Save Supplier
+        </button>
+    </div>
+</div>
+{% endblock %}

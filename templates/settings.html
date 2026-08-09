@@ -399,22 +399,10 @@
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">Security Settings</h3>
                 
                 <div class="space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <label for="security-session_timeout" class="block text-sm font-medium text-gray-700">Session Timeout</label>
-                            <p class="text-sm text-gray-500">Automatically log out after inactivity</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="security-session_timeout" 
-                                   {% if settings.get('security', {}).get('session_timeout', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('security')">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    
                     <div>
-                        <label for="security-session_duration" class="block text-sm font-medium text-gray-700 mb-1">Session Duration (minutes)</label>
-                        <input type="number" id="security-session_duration" 
+                        <label for="security-session_timeout" class="block text-sm font-medium text-gray-700 mb-1">Session Timeout (minutes)</label>
+                        <p class="text-sm text-gray-500 mb-2">Automatically log out after this many minutes of inactivity</p>
+                        <input type="number" id="security-session_timeout"
                                value="{{ settings.get('security', {}).get('session_timeout', {}).get('value', '30') }}" min="5" max="480"
                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                onchange="markSectionAsChanged('security')">
@@ -446,22 +434,63 @@
                     
                     <div class="flex items-center justify-between">
                         <div>
-                            <label for="security-max_login_attempts" class="block text-sm font-medium text-gray-700">Max Login Attempts</label>
+                            <label for="security-login_attempts" class="block text-sm font-medium text-gray-700">Max Login Attempts</label>
                             <p class="text-sm text-gray-500">Maximum failed login attempts before lockout</p>
                         </div>
-                        <input type="number" id="security-max_login_attempts" 
+                        <input type="number" id="security-login_attempts"
                                value="{{ settings.get('security', {}).get('login_attempts', {}).get('value', '3') }}" min="1" max="10"
                                class="w-20 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                onchange="markSectionAsChanged('security')">
                     </div>
                     
                     <div class="border-t pt-4">
-                        <button onclick="changePassword()" class="w-full bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 transition-colors">
+                        <button type="button" onclick="openChangePasswordModal()" class="w-full bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 transition-colors cursor-pointer">
                             <i class="fas fa-key mr-2"></i>Change Admin Password
                         </button>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Password Modal -->
+<div id="changePasswordModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg max-w-md w-full p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Change Password</h3>
+                <button type="button" onclick="closeChangePasswordModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="changePasswordForm" onsubmit="submitChangePassword(event)" class="space-y-4">
+                <div>
+                    <label for="cp-current" class="block text-sm font-medium text-gray-700">Current Password</label>
+                    <input type="password" id="cp-current" required autocomplete="current-password"
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <div>
+                    <label for="cp-new" class="block text-sm font-medium text-gray-700">New Password</label>
+                    <input type="password" id="cp-new" required autocomplete="new-password" minlength="8"
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+                <div>
+                    <label for="cp-confirm" class="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                    <input type="password" id="cp-confirm" required autocomplete="new-password"
+                           class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                </div>
+
+                <div class="mt-6 flex justify-end space-x-3">
+                    <button type="button" onclick="closeChangePasswordModal()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors cursor-pointer">
+                        Update Password
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -508,7 +537,6 @@
     // Mark section as changed
     function markSectionAsChanged(section) {
         changedSections.add(section);
-        console.log(`Section ${section} marked as changed`);
     }
 
     // Collect settings from a section
@@ -534,171 +562,157 @@
         return settings;
     }
 
+    const SETTING_SECTIONS =
+        ['general', 'inventory', 'sales', 'notifications', 'backup', 'security'];
+
     // Save all settings
     async function saveAllSettings() {
-        try {
-            const allSettings = {};
-            
-            // Collect all settings from all sections
-            const sections = ['general', 'inventory', 'sales', 'notifications', 'backup', 'security'];
-            for (const section of sections) {
-                allSettings[section] = collectSectionSettings(section);
-            }
-            
-            const response = await fetch('/api/settings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(allSettings)
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                // Clear changed sections
-                changedSections.clear();
-                alert('Settings saved successfully!');
-            } else {
-                throw new Error(data.error || 'Failed to save settings');
-            }
-        } catch (error) {
-            console.error('Error saving settings:', error);
-            alert('Failed to save settings: ' + error.message);
+        const payload = {};
+        SETTING_SECTIONS.forEach(function (section) {
+            payload[section] = collectSectionSettings(section);
+        });
+
+        const result = await JRF.api('/api/settings', { method: 'POST', body: payload });
+        if (!result.ok) {
+            JRF.notifyError(result, 'Failed to save settings.');
+            return;
         }
+
+        changedSections.clear();
+        const updated = (result.data && result.data.updated) || [];
+        const errors = (result.data && result.data.errors) || [];
+        JRF.notify(`Saved ${updated.length} setting(s).`, 'success');
+        // Partial success is reported, not silently swallowed.
+        if (errors.length) JRF.notify(errors.join('  |  '), 'warning');
     }
 
     // Export settings
     async function exportSettings() {
-        try {
-            const response = await fetch('/api/settings/export');
-            const data = await response.json();
-            
-            // Create and download file
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `settings_export_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-            
-            alert('Settings exported successfully!');
-        } catch (error) {
-            console.error('Error exporting settings:', error);
-            alert('Failed to export settings');
+        const result = await JRF.api('/api/settings/export');
+        if (!result.ok) {
+            JRF.notifyError(result, 'Failed to export settings.');
+            return;
         }
+
+        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+            type: 'application/json',
+        });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `settings_export_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        JRF.notify('Settings exported.', 'success');
     }
 
     // Import settings
     async function importSettings(event) {
         const file = event.target.files[0];
         if (!file) return;
-        
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-            
-            const response = await fetch('/api/settings/import', {
-                method: 'POST',
-                body: formData
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                alert('Settings imported successfully! Please refresh the page.');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-            } else {
-                throw new Error(data.error || 'Failed to import settings');
-            }
-        } catch (error) {
-            console.error('Error importing settings:', error);
-            alert('Failed to import settings: ' + error.message);
-        }
-        
-        // Reset file input
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const result = await JRF.api('/api/settings/import', {
+            method: 'POST',
+            body: formData,
+        });
         event.target.value = '';
+
+        if (!result.ok) {
+            JRF.notifyError(result, 'Failed to import settings.');
+            return;
+        }
+
+        JRF.notify('Settings imported. Reloading…', 'success');
+        setTimeout(function () { window.location.reload(); }, 1500);
     }
 
     // Reset settings
     async function resetSettings() {
-        if (!confirm('Are you sure you want to reset all settings to defaults? This action cannot be undone.')) {
+        if (!confirm('Reset all settings to defaults? This cannot be undone.')) return;
+
+        const result = await JRF.api('/api/settings/reset', { method: 'POST' });
+        if (!result.ok) {
+            JRF.notifyError(result, 'Failed to reset settings.');
             return;
         }
-        
-        try {
-            const response = await fetch('/api/settings/reset', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
 
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                alert('Settings reset to defaults!');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                throw new Error(data.error || 'Failed to reset settings');
-            }
-        } catch (error) {
-            console.error('Error resetting settings:', error);
-            alert('Failed to reset settings: ' + error.message);
-        }
+        JRF.notify('Settings reset to defaults. Reloading…', 'success');
+        setTimeout(function () { window.location.reload(); }, 1000);
     }
 
     // Create backup
     async function createBackup() {
-        try {
-            const response = await fetch('/api/backup', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                alert('Backup created successfully!');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                throw new Error(data.error || 'Backup failed');
-            }
-        } catch (error) {
-            console.error('Error creating backup:', error);
-            alert('Failed to create backup: ' + error.message);
+        JRF.notify('Starting backup…', 'info');
+        const result = await JRF.api('/api/system/backups', { method: 'POST' });
+        if (!result.ok) {
+            JRF.notifyError(result, 'Backup failed.');
+            return;
         }
+
+        JRF.notify('Backup created. Reloading…', 'success');
+        setTimeout(function () { window.location.reload(); }, 1000);
     }
 
-    // Restore backup (placeholder - backend restore implementation not yet provided)
+    // Restore is deliberately not wired up: there is no restore endpoint, and
+    // a half-built one on this screen would be the most dangerous button here.
     function restoreBackup() {
-        alert('Restore backup is not implemented yet. Please implement the restore API before using this feature.');
+        JRF.notify(
+            'Restore is not available yet. Use pg_restore against a downloaded backup.',
+            'warning'
+        );
+    }
+
+    // Change password modal
+    function openChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.remove('hidden');
+        document.getElementById('cp-current').focus();
+    }
+
+    function closeChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.add('hidden');
+        document.getElementById('changePasswordForm').reset();
+    }
+
+    async function submitChangePassword(event) {
+        event.preventDefault();
+
+        const current_password = document.getElementById('cp-current').value;
+        const new_password = document.getElementById('cp-new').value;
+        const confirm_password = document.getElementById('cp-confirm').value;
+
+        if (new_password !== confirm_password) {
+            JRF.notify('New passwords do not match.', 'error');
+            return;
+        }
+
+        const result = await JRF.api('/api/auth/change-password', {
+            method: 'POST',
+            body: { current_password: current_password, new_password: new_password },
+        });
+
+        if (!result.ok) {
+            JRF.notifyError(result, 'Could not change password.');
+            return;
+        }
+
+        closeChangePasswordModal();
+        JRF.notify('Password changed successfully.', 'success');
     }
 
     // Test database connection
     async function testConnection() {
-        try {
-            const response = await fetch('/api/settings');
-            if (response.ok) {
-                alert('Database connection successful!');
-            } else {
-                throw new Error('Connection failed');
-            }
-        } catch (error) {
-            console.error('Connection test failed:', error);
-            alert('Database connection failed!');
-        }
+        const result = await JRF.api('/health');
+        const healthy = result.ok && result.data && result.data.database === 'connected';
+        JRF.notify(
+            healthy ? 'Database connection successful.' : 'Database connection failed.',
+            healthy ? 'success' : 'error'
+        );
     }
 
     // Initialize with general section

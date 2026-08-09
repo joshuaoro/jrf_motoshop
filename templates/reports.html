@@ -216,6 +216,29 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    /**
+     * Draw a Chart.js chart, or show a placeholder if the library is missing.
+     *
+     * Chart.js is loaded from a CDN. On a shop with unreliable internet that
+     * script can simply fail, and calling `new Chart(...)` then throws a
+     * ReferenceError that aborts the surrounding handler - taking the tables
+     * and totals down with it. Degrade to a message instead.
+     */
+    function renderChart(canvasId, config) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return null;
+
+        if (typeof Chart === 'undefined') {
+            const container = canvas.parentElement || canvas;
+            container.innerHTML =
+                '<div class="flex items-center justify-center h-full text-sm text-gray-400 py-8">' +
+                '<i class="fas fa-chart-line mr-2"></i>Charts unavailable offline</div>';
+            return null;
+        }
+
+        return new Chart(canvas.getContext('2d'), config);
+    }
+
     // Helper function to get payment method badge
     function getPaymentBadge(method) {
         const badges = {
@@ -228,7 +251,7 @@
     }
 
     // Load real sales data from API
-    fetch('/api/sales-data')
+    fetch('/api/dashboard/overview')
         .then(response => response.json())
         .then(data => {
             // Get currency symbol from template
@@ -257,9 +280,9 @@
             } else {
                 topProductsTableBody.innerHTML = data.top_parts.map(part => `
                     <tr class="border-b hover:bg-gray-50">
-                        <td class="py-3 px-2 font-medium">${part.name}</td>
-                        <td class="py-3 px-2 text-right">${part.units_sold}</td>
-                        <td class="py-3 px-2 text-right font-semibold">${currencySymbol}${part.revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td class="py-3 px-2 font-medium">${escapeHtml(part.name)}</td>
+                        <td class="py-3 px-2 text-right">${part.total_sold}</td>
+                        <td class="py-3 px-2 text-right font-semibold">${currencySymbol}${part.total_revenue.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                     </tr>
                 `).join('');
             }
@@ -281,7 +304,7 @@
                     const urgencyColor = item.stock_quantity === 0 ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800';
                     return `
                         <tr class="border-b hover:bg-gray-50">
-                            <td class="py-3 px-2 font-medium">${item.name}</td>
+                            <td class="py-3 px-2 font-medium">${escapeHtml(item.name)}</td>
                             <td class="py-3 px-2 text-center">
                                 <span class="px-2 py-1 text-xs rounded-full ${urgencyColor}">
                                     ${item.stock_quantity}
@@ -311,9 +334,11 @@
                 }]
             };
             
-            // Initialize sales chart
-            const salesCtx = document.getElementById('salesChart').getContext('2d');
-            new Chart(salesCtx, {
+            // Initialize sales chart. Chart.js comes from a CDN, so guard
+            // against it being unreachable - the rest of the report is still
+            // useful without the graph, and an uncaught ReferenceError here
+            // would abort the whole handler and blank the page.
+            renderChart('salesChart', {
                 type: 'line',
                 data: salesData,
                 options: {
@@ -355,9 +380,8 @@
                 }]
             };
             
-            // Initialize category chart
-            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-            new Chart(categoryCtx, {
+            // Initialize category chart (see the note above about the CDN).
+            renderChart('categoryChart', {
                 type: 'doughnut',
                 data: categoryData,
                 options: {
@@ -392,7 +416,7 @@
 
     // Load today's sales data
     function loadTodaysSales() {
-        fetch('/api/todays-sales')
+        fetch('/api/dashboard/today')
             .then(response => response.json())
             .then(data => {
                 const currencySymbol = '{{ currency_symbol }}';
@@ -429,10 +453,10 @@
                     todaysSalesTableBody.innerHTML = sales.map(sale => `
                         <tr class="border-b hover:bg-gray-50">
                             <td class="py-3 px-2">${sale.sale_date ? new Date(sale.sale_date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</td>
-                            <td class="py-3 px-2">${sale.customer_name || 'Walk-in Customer'}</td>
+                            <td class="py-3 px-2">${escapeHtml(sale.customer_name || 'Walk-in Customer')}</td>
                             <td class="py-3 px-2 text-right font-semibold">${currencySymbol}${(sale.total_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                             <td class="py-3 px-2">${getPaymentBadge(sale.payment_method || 'cash')}</td>
-                            <td class="py-3 px-2">${sale.staff_name || 'Unknown'}</td>
+                            <td class="py-3 px-2">${escapeHtml(sale.staff_name || 'Unknown')}</td>
                         </tr>
                     `).join('');
                 }

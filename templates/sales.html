@@ -115,7 +115,7 @@
         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="partsGrid">
             {% for part in parts %}
             <div class="part-card card p-4 relative bg-white rounded-xl shadow-md" 
-                 data-id="{{ part.part_id }}"
+                 data-id="{{ part.id }}"
                  data-name="{{ part.name }}"
                  data-price="{{ part.price }}"
                  data-stock="{{ part.stock_quantity }}"
@@ -158,7 +158,7 @@
                         <span class="text-lg font-bold text-blue-600">₱{{ "%.2f"|format(part.price) }}</span>
                     </div>
                     <button class="add-to-cart-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-xs font-semibold transition-all hover:shadow-lg hover:-translate-y-0.5"
-                            data-part-id="{{ part.part_id }}"
+                            data-part-id="{{ part.id }}"
                             data-part-name="{{ part.name }}"
                             data-part-price="{{ part.price }}"
                             data-part-stock="{{ part.stock_quantity }}">
@@ -461,27 +461,19 @@
     // DOM Elements (will be initialized after DOM loads)
     let cartItemsEl, subtotalEl, taxEl, totalEl, checkoutBtn, clearCartBtn, searchInput, processPaymentBtn, customerSelect, customerDetails, customerName, customerEmail, customerPhone, editCustomerBtn;
     
-    // Fetch tax rate from settings
-    async function fetchTaxRate() {
-        try {
-            const response = await fetch('/api/settings/sales/tax_rate');
-            if (response.ok) {
-                const data = await response.json();
-                taxRate = parseFloat(data.value) / 100; // Convert percentage to decimal
-                console.log('Tax rate loaded from settings:', taxRate);
-                
-                // Update tax display to show current rate
-                const taxLabel = document.getElementById('taxLabel');
-                if (taxLabel) {
-                    taxLabel.textContent = `Tax (${data.value}%)`;
-                }
-                
-                updateCart(); // Recalculate cart with new tax rate
-            }
-        } catch (error) {
-            console.error('Error fetching tax rate:', error);
-            // Use default tax rate of 12%
+    // Tax rate as a percentage, resolved server-side from settings. The view
+    // already normalises the stored value (which may be 0.12 or 12), so this
+    // is the single source of truth - an extra client fetch that divided the
+    // stored 0.12 by 100 again made tax come out 100x too low.
+    const TAX_PERCENT = Number('{{ tax_rate }}') || 0;
+
+    function applyTaxRate() {
+        taxRate = TAX_PERCENT / 100;
+        const taxLabel = document.getElementById('taxLabel');
+        if (taxLabel) {
+            taxLabel.textContent = `Tax (${TAX_PERCENT}%)`;
         }
+        updateCart();
     }
     
     // Initialize the page
@@ -503,7 +495,7 @@
         editCustomerBtn = document.getElementById('editCustomerBtn');
         
         // Fetch tax rate from settings first
-        fetchTaxRate();
+        applyTaxRate();
         
         // Load customers
         loadCustomers();
@@ -590,7 +582,7 @@
         
         if (isNaN(partId) || isNaN(price) || isNaN(stock)) {
             console.error('Invalid data:', { partId, partName, price, stock });
-            alert('Invalid product data');
+            JRF.notify('Could not read that product.', 'error');
             return;
         }
         
@@ -601,7 +593,7 @@
             if (existingItem.quantity < stock) {
                 existingItem.quantity += 1;
             } else {
-                alert('Not enough stock available');
+                JRF.notify('Not enough stock available.', 'warning');
                 return;
             }
         } else {
@@ -614,7 +606,7 @@
                     stock: stock
                 });
             } else {
-                alert('This item is out of stock');
+                JRF.notify('That item is out of stock.', 'warning');
                 return;
             }
         }
@@ -653,7 +645,7 @@
                 <div class="cart-item">
                     <div class="flex items-center justify-between py-2 border-b border-gray-100">
                         <div>
-                            <h4 class="text-sm font-medium text-gray-900">${item.name}</h4>
+                            <h4 class="text-sm font-medium text-gray-900">${escapeHtml(item.name)}</h4>
                             <div class="flex items-center mt-1">
                                 <button class="text-gray-500 hover:text-gray-700" 
                                         onclick="updateQuantity(${item.id}, ${item.quantity - 1})">
@@ -713,7 +705,7 @@
         }
         
         if (newQuantity > item.stock) {
-            alert(`Only ${item.stock} items available in stock`);
+            JRF.notify(`Only ${item.stock} in stock.`, 'warning');
             return;
         }
         
@@ -761,7 +753,6 @@
             stock: parseInt(card.getAttribute('data-stock'))
         };
         
-        console.log('Product data:', productData);
         
         // Store current product for modal add to cart
         window.currentModalProduct = productData;
@@ -854,7 +845,7 @@
                         <div class="flex items-center justify-between bg-white rounded-lg p-2">
                             <div class="flex items-center">
                                 <i class="fas fa-building text-blue-600 mr-2"></i>
-                                <span class="text-sm font-medium text-blue-900">${supplier.name}</span>
+                                <span class="text-sm font-medium text-blue-900">${escapeHtml(supplier.name)}</span>
                             </div>
                             <span class="text-xs text-blue-600">Primary</span>
                         </div>
@@ -872,45 +863,25 @@
     }
     
     // Load sales performance data for a product
-    function loadSalesPerformance(partId) {
-        try {
-            fetch(`/api/parts/${partId}/sales-metrics`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to load sales metrics');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    const totalSoldEl = document.getElementById('modalTotalSold');
-                    const revenueEl = document.getElementById('modalRevenue');
-                    const avgPriceEl = document.getElementById('modalAvgPrice');
+    async function loadSalesPerformance(partId) {
+        const setMetrics = (sold, revenue, avgPrice) => {
+            const soldEl = document.getElementById('modalTotalSold');
+            const revenueEl = document.getElementById('modalRevenue');
+            const avgEl = document.getElementById('modalAvgPrice');
+            if (soldEl) soldEl.textContent = sold;
+            if (revenueEl) revenueEl.textContent = JRF.currency(revenue);
+            if (avgEl) avgEl.textContent = JRF.currency(avgPrice);
+        };
 
-                    if (totalSoldEl) {
-                        totalSoldEl.textContent = data.total_sold ?? 0;
-                    }
-                    if (revenueEl) {
-                        const revenue = data.total_revenue ?? 0;
-                        revenueEl.textContent = `₱${Number(revenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                    }
-                    if (avgPriceEl) {
-                        const avgPrice = data.avg_price ?? 0;
-                        avgPriceEl.textContent = `₱${Number(avgPrice).toFixed(2)}`;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading sales metrics for product modal:', error);
-                    const totalSoldEl = document.getElementById('modalTotalSold');
-                    const revenueEl = document.getElementById('modalRevenue');
-                    const avgPriceEl = document.getElementById('modalAvgPrice');
-
-                    if (totalSoldEl) totalSoldEl.textContent = '0';
-                    if (revenueEl) revenueEl.textContent = '₱0.00';
-                    if (avgPriceEl) avgPriceEl.textContent = '₱0.00';
-                });
-        } catch (error) {
-            console.error('Unexpected error in loadSalesPerformance:', error);
+        const result = await JRF.api(`/api/parts/${partId}/sales-metrics`);
+        if (!result.ok) {
+            // A never-sold part is normal; show zeroes rather than an error.
+            setMetrics(0, 0, 0);
+            return;
         }
+
+        const data = result.data || {};
+        setMetrics(data.total_sold ?? 0, data.total_revenue ?? 0, data.avg_price ?? 0);
     }
     
     // Add product to cart from modal
@@ -981,7 +952,7 @@
     // Process payment
     function processPayment() {
         if (!selectedPaymentMethod) {
-            alert('Please select a payment method');
+            JRF.notify('Select a payment method first.', 'warning');
             return;
         }
         
@@ -989,58 +960,67 @@
             const amountReceived = parseFloat(document.getElementById('amountReceived').value) || 0;
             const total = parseFloat(totalEl.textContent.replace('₱', ''));
             if (amountReceived < total) {
-                alert('Insufficient amount received');
+                JRF.notify('Amount received is less than the total.', 'warning');
                 return;
             }
         }
         
-        const paymentData = {
-            items: cart,
-            subtotal: parseFloat(subtotalEl.textContent.replace('₱', '')),
-            tax: parseFloat(taxEl.textContent.replace('₱', '')),
-            total: parseFloat(totalEl.textContent.replace('₱', '')),
-            paymentMethod: selectedPaymentMethod,
-            customer_id: selectedCustomerId,
-            amountReceived: selectedPaymentMethod === 'cash' ? 
-                parseFloat(document.getElementById('amountReceived').value) || 0 : 0,
-            timestamp: new Date().toISOString()
+        if (cart.length === 0) {
+            JRF.notify('The cart is empty.', 'warning');
+            return;
+        }
+
+        // The API wants {payment_method, details:[{part_id, quantity, ...}]}
+        // and computes every total itself. The previous payload sent a cart
+        // envelope with client-side totals, which the schema rejected
+        // outright - checkout could never record a sale.
+        const payload = {
+            payment_method: selectedPaymentMethod,
+            details: cart.map(function (item) {
+                return {
+                    part_id: item.id,
+                    quantity: item.quantity,
+                    unit_price: String(item.price),
+                    tax_percent: String(TAX_PERCENT),
+                };
+            }),
         };
-        
-        // Send sale data to server
-        fetch('/api/sales', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(paymentData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Payment processed successfully!');
-                clearCart();
-                closePaymentModal();
-            } else {
-                alert(data.message || 'Failed to process payment');
+        if (selectedCustomerId) payload.customer_id = parseInt(selectedCustomerId, 10);
+
+        const button = document.getElementById('processPaymentBtn');
+        if (button) button.disabled = true;
+
+        JRF.api('/api/sales', { method: 'POST', body: payload }).then(function (result) {
+            if (button) button.disabled = false;
+
+            if (!result.ok) {
+                JRF.notifyError(result, 'Failed to record the sale.');
+                return;
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while processing the payment');
+
+            const sale = result.data || {};
+            JRF.notify(
+                `Sale ${sale.receipt_number || ''} recorded - ${JRF.currency(sale.total_amount)}`,
+                'success'
+            );
+            clearCart();
+            closePaymentModal();
+            // Stock levels and the recent-sales list are both stale now.
+            setTimeout(function () { window.location.reload(); }, 1200);
         });
     }
     
     // Customer Management Functions
     async function loadCustomers() {
-        try {
-            const response = await fetch('/api/customers');
-            if (response.ok) {
-                allCustomers = await response.json();
-                updateCustomerDropdown();
-            }
-        } catch (error) {
-            console.error('Error loading customers:', error);
+        const result = await JRF.api('/api/customers?per_page=100');
+        if (!result.ok) {
+            JRF.notifyError(result, 'Could not load customers.');
+            return;
         }
+        // The endpoint returns {customers: [...], pagination: {...}} - assigning
+        // the envelope left the dropdown permanently empty.
+        allCustomers = (result.data && result.data.customers) || [];
+        updateCustomerDropdown();
     }
     
     function updateCustomerDropdown() {
@@ -1090,92 +1070,73 @@
         }
     }
     
-    function addNewCustomer() {
+    async function addNewCustomer() {
         const name = prompt('Enter customer name:');
         if (!name) return;
-        
-        const email = prompt('Enter customer email:');
-        if (!email) return;
-        
+
+        // Email is optional on the server; only send it when given so a blank
+        // prompt does not fail validation.
+        const email = prompt('Enter customer email (optional):');
         const phone = prompt('Enter customer phone (optional):');
         const address = prompt('Enter customer address (optional):');
-        
-        const customerData = {
-            name: name,
-            email: email,
-            phone: phone || '',
-            address: address || ''
-        };
-        
-        fetch('/api/customers', {
+
+        const result = await JRF.api('/api/customers', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
+            body: {
+                name: name,
+                email: email || null,
+                phone: phone || null,
+                address: address || null,
             },
-            body: JSON.stringify(customerData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Customer added successfully!');
-                loadCustomers(); // Reload customers
-                // Select the new customer
-                selectedCustomerId = data.customer.id;
-                customerSelect.value = data.customer.id;
-                handleCustomerSelection();
-            } else {
-                alert(data.error || 'Failed to add customer');
-            }
-        })
-        .catch(error => {
-            console.error('Error adding customer:', error);
-            alert('An error occurred while adding the customer');
         });
+
+        if (!result.ok) {
+            JRF.notifyError(result, 'Failed to add the customer.');
+            return;
+        }
+
+        // The endpoint returns the customer itself, not {customer: {...}}.
+        const customer = result.data || {};
+        JRF.notify(`Customer "${customer.name}" added.`, 'success');
+
+        await loadCustomers();
+        selectedCustomerId = customer.id;
+        if (customerSelect) customerSelect.value = customer.id;
+        handleCustomerSelection();
     }
     
-    function editSelectedCustomer() {
+    async function editSelectedCustomer() {
         if (!selectedCustomerId) return;
-        
+
         const customer = allCustomers.find(c => c.id == selectedCustomerId);
         if (!customer) return;
-        
+
         const name = prompt('Enter customer name:', customer.name);
         if (!name) return;
-        
-        const email = prompt('Enter customer email:', customer.email);
-        if (!email) return;
-        
-        const phone = prompt('Enter customer phone:', customer.phone);
-        const address = prompt('Enter customer address:', customer.address);
-        
-        const customerData = {
-            name: name,
-            email: email,
-            phone: phone || '',
-            address: address || ''
-        };
-        
-        fetch(`/api/customers/${selectedCustomerId}`, {
+
+        // Blank clears the field rather than aborting the edit.
+        const email = prompt('Enter customer email:', customer.email || '');
+        const phone = prompt('Enter customer phone:', customer.phone || '');
+        const address = prompt('Enter customer address:', customer.address || '');
+
+        const result = await JRF.api(`/api/customers/${selectedCustomerId}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
+            body: {
+                name: name,
+                email: email || null,
+                phone: phone || null,
+                address: address || null,
             },
-            body: JSON.stringify(customerData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Customer updated successfully!');
-                loadCustomers(); // Reload customers
-                handleCustomerSelection(); // Update display
-            } else {
-                alert(data.error || 'Failed to update customer');
-            }
-        })
-        .catch(error => {
-            console.error('Error updating customer:', error);
-            alert('An error occurred while updating the customer');
         });
+
+        if (!result.ok) {
+            JRF.notifyError(result, 'Failed to update the customer.');
+            return;
+        }
+
+        JRF.notify('Customer updated.', 'success');
+        await loadCustomers();
+        handleCustomerSelection();
     }
 </script>
 {% endblock %}

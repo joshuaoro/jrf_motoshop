@@ -1,9 +1,45 @@
-Flask==2.3.3
+# ============================================================
+# JRF Motorcycle Parts - Runtime dependencies
+# Python 3.11+
+# ============================================================
+
+# --- Core Flask ---
+Flask==3.0.3
+Werkzeug==3.0.6
+Jinja2==3.1.4
+itsdangerous==2.2.0
+click==8.1.7
+
+# --- Flask extensions ---
 Flask-SQLAlchemy==3.1.1
-Flask-Login==0.6.2
+Flask-Login==0.6.3
 Flask-WTF==1.2.1
-python-dotenv==1.0.0
-Werkzeug==2.3.7
-email-validator==2.1.0
-Flask-Migrate==4.0.5
-pymysql==1.1.0
+WTForms==3.1.2
+Flask-Migrate==4.0.7
+Flask-Limiter==3.8.0
+
+# --- Serialization / validation ---
+# NOTE: pinned to marshmallow 3.x. Schemas use the marshmallow 3 `@validates`
+# signature, which changed incompatibly in marshmallow 4.
+marshmallow==3.21.3
+marshmallow-sqlalchemy==1.0.0
+
+# --- Database ---
+SQLAlchemy==2.0.35
+alembic==1.13.2
+psycopg2-binary==2.9.9
+
+# --- Configuration ---
+python-dotenv==1.0.1
+
+# --- Background tasks (optional: only needed for the celery/beat services) ---
+celery==5.4.0
+redis==5.0.8
+
+# --- Email (optional) ---
+# Only used when MAIL_SERVER is configured. Without it the email tasks report
+# themselves as skipped rather than failing.
+Flask-Mail==0.10.0
+
+# --- Production server ---
+gunicorn==22.0.0

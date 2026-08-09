@@ -152,10 +152,10 @@ function renderNotifications(notifications) {
                 </div>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-medium text-gray-900 ${!notification.is_read ? 'font-semibold' : ''}">
-                        ${notification.title}
+                        ${escapeHtml(notification.title)}
                     </p>
                     <p class="text-sm text-gray-600 mt-1">
-                        ${notification.message}
+                        ${escapeHtml(notification.message)}
                     </p>
                     <div class="flex items-center justify-between mt-2">
                         <p class="text-xs text-gray-400">
@@ -163,10 +163,10 @@ function renderNotifications(notifications) {
                         </p>
                         <div class="flex space-x-2">
                             ${notification.action_url ? `
-                                <a href="${notification.action_url}" 
+                                <a href="${escapeHtml(safeUrl(notification.action_url) || '#')}" 
                                    class="text-xs text-blue-600 hover:text-blue-800"
                                    onclick="markNotificationRead(${notification.id})">
-                                    ${notification.action_text || 'View'}
+                                    ${escapeHtml(notification.action_text || 'View')}
                                 </a>
                             ` : ''}
                             ${!notification.is_read ? `

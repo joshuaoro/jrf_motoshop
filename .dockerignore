@@ -1,0 +1,46 @@
+# Secrets - must never enter the image
+.env
+.env.*
+!.env.example
+
+# Version control
+.git
+.gitignore
+
+# Virtualenvs
+.venv
+venv
+env
+
+# Python caches
+__pycache__
+*.py[cod]
+*.egg-info
+
+# Local databases and runtime artifacts
+instance/
+*.db
+*.sqlite3
+logs/
+backups/
+*.log
+
+# Tests and tooling (not needed at runtime)
+tests/
+.pytest_cache
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache
+.ruff_cache
+requirements-dev.txt
+
+# Editors / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Docs and compose config
+README.md
+docker-compose.yml

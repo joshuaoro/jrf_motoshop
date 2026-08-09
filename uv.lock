@@ -1,0 +1,8 @@
+version = 1
+revision = 3
+requires-python = ">=3.11"
+
+[[package]]
+name = "jrf-motoshop"
+version = "2.0.3"
+source = { virtual = "." }

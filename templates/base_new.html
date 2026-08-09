@@ -11,24 +11,33 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Custom CSS -->
-    <style>
+        <!-- CSRF Meta Tags -->
+        <meta name="csrf-token" content="{{ csrf_token() }}">
+        
+        <!-- Custom CSS -->
+        <style>
         :root {
             --primary: #2563eb;
             --primary-hover: #1d4ed8;
+            --primary-deep: #1e40af;
+            --primary-soft: #eff6ff;
             --secondary: #10b981;
             --danger: #ef4444;
             --danger-hover: #dc2626;
-            --bg-main: #f8fafc;
-            --bg-sidebar: #1e293b;
+            --warning: #f59e0b;
+            --bg-main: #f6f8fb;
+            --bg-sidebar: #0f172a;
             --bg-card: #ffffff;
-            --border-color: #e2e8f0;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
+            --border-color: #e5e9f0;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
             --text-muted: #94a3b8;
-            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+            --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+            --shadow-md: 0 6px 16px -4px rgba(15, 23, 42, 0.12), 0 2px 6px -2px rgba(15, 23, 42, 0.05);
+            --shadow-lg: 0 18px 40px -12px rgba(15, 23, 42, 0.18), 0 6px 12px -6px rgba(15, 23, 42, 0.06);
+            --radius-md: 12px;
+            --radius-lg: 16px;
             --navy-dark: #0f172a;
             --navy-medium: #1e293b;
             --navy-light: #334155;
@@ -37,19 +46,77 @@
         * {
             box-sizing: border-box;
         }
-        
+
+        /* Tailwind's CSS reset gives buttons `cursor: default`, which makes the
+           whole interface feel dead. Restore the expected affordance. */
+        button:not(:disabled),
+        [role="button"]:not(:disabled) {
+            cursor: pointer;
+        }
+
+        /* Reliable keyboard focus indication (WCAG 2.4.7). */
+        :focus {
+            outline: none;
+        }
+        :focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        /* Prefer reduced motion when the user asks for it. */
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
         body {
             background-color: var(--bg-main);
             color: var(--text-primary);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
             line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Bump the Inter font weight for UI glyphs so headings don't look thin. */
+        h1, h2, h3, h4, .font-semibold, .font-bold {
+            letter-spacing: -0.01em;
         }
         
         .sidebar {
-            background-color: var(--bg-sidebar);
-            border-right: 1px solid var(--navy-light);
+            background:
+                radial-gradient(120% 60% at 100% 0%, rgba(59, 130, 246, 0.14), transparent 55%),
+                linear-gradient(180deg, var(--bg-sidebar) 0%, #111c33 100%);
+            border-right: 1px solid rgba(51, 65, 85, 0.6);
             position: relative;
             overflow: hidden;
+        }
+
+        /* Mobile: slide the sidebar in from the left as an overlay drawer.
+           On desktop (>=1024px) the flex layout is unchanged. */
+        .sidebar-drawer {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @media (max-width: 1023px) {
+            .sidebar-drawer {
+                position: fixed;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                z-index: 60;
+                transform: translateX(-100%);
+            }
+            .sidebar-drawer.sidebar-open {
+                transform: translateX(0);
+                box-shadow: 0 0 0 200vmax rgba(15, 23, 42, 0.5);
+            }
         }
         
         .sidebar::before {
@@ -64,52 +131,51 @@
         }
         
         .sidebar-link {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 12px;
-            margin: 4px 12px;
-            padding: 12px 16px;
-            color: #cbd5e1;
+            transition: color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+            border-radius: 10px;
+            margin: 3px 12px;
+            padding: 11px 16px;
+            color: #94a3b8;
             position: relative;
-            overflow: hidden;
+            font-weight: 500;
         }
-        
-        .sidebar-link::before {
+
+        .sidebar-link:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #e2e8f0;
+            transform: translateX(2px);
+        }
+
+        /* Active link: a soft glass pill with a left accent bar instead of a
+           flat, saturated block. Reads calmer and keeps the brand accent. */
+        .sidebar-link.active {
+            background: linear-gradient(90deg, rgba(37, 99, 235, 0.28), rgba(37, 99, 235, 0.12));
+            color: #ffffff;
+            transform: translateX(2px);
+        }
+
+        .sidebar-link.active::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.1);
-            transition: left 0.5s;
+            left: 0;
+            top: 20%;
+            bottom: 20%;
+            width: 3px;
+            border-radius: 999px;
+            background: var(--primary);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
         }
-        
-        .sidebar-link:hover::before {
-            left: 100%;
-        }
-        
-        .sidebar-link:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateX(4px);
-            color: white;
-        }
-        
-        .sidebar-link.active {
-            background-color: var(--primary);
-            color: white;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-            transform: translateX(4px);
-        }
-        
+
         .sidebar-link.active i {
-            color: white;
+            color: #ffffff;
         }
         
         .header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: saturate(180%) blur(12px);
+            -webkit-backdrop-filter: saturate(180%) blur(12px);
             border-bottom: 1px solid var(--border-color);
-            box-shadow: var(--shadow-sm);
+            box-shadow: var(--shadow-xs);
             position: relative;
             z-index: 40;
         }
@@ -117,125 +183,127 @@
         .card {
             background: var(--bg-card);
             border: 1px solid var(--border-color);
-            border-radius: 16px;
+            border-radius: var(--radius-lg);
             box-shadow: var(--shadow-sm);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
             position: relative;
             overflow: hidden;
         }
-        
+
         .card::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
-            height: 4px;
-            background-color: var(--primary);
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), rgba(37, 99, 235, 0.4));
             transform: scaleX(0);
-            transition: transform 0.3s ease;
+            transform-origin: left;
+            transition: transform 0.35s ease;
         }
-        
+
         .card:hover::before {
             transform: scaleX(1);
         }
-        
+
         .card:hover {
-            box-shadow: var(--shadow-lg);
+            box-shadow: var(--shadow-md);
+            border-color: #d3dae5;
             transform: translateY(-2px);
         }
         
         .btn-primary {
-            background-color: var(--primary);
+            background: linear-gradient(180deg, var(--primary) 0%, var(--primary-deep) 100%);
             color: white;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             padding: 10px 20px;
             font-weight: 600;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
         }
-        
-        .btn-primary::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.2);
-            transition: left 0.5s;
-        }
-        
-        .btn-primary:hover::before {
-            left: 100%;
-        }
-        
+
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(37, 99, 235, 0.3);
+            filter: brightness(1.06);
+            box-shadow: 0 10px 22px -8px rgba(37, 99, 235, 0.55);
+            transform: translateY(-1px);
         }
-        
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
         .btn-secondary {
             background: transparent;
             color: var(--primary);
-            border: 2px solid var(--primary);
-            border-radius: 12px;
+            border: 1.5px solid var(--primary);
+            border-radius: 10px;
             padding: 8px 18px;
             font-weight: 600;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
-        
+
         .btn-secondary:hover {
-            background: var(--primary);
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(37, 99, 235, 0.2);
+            background: var(--primary-soft);
+            border-color: var(--primary-hover);
+            color: var(--primary-hover);
+            transform: translateY(-1px);
         }
-        
+
         .btn-danger {
             background-color: var(--danger);
             color: white;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             padding: 10px 20px;
             font-weight: 600;
-            transition: all 0.3s ease;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+            transition: filter 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
         }
-        
+
         .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 16px rgba(239, 68, 68, 0.3);
+            filter: brightness(1.05);
+            box-shadow: 0 10px 22px -10px rgba(239, 68, 68, 0.55);
+            transform: translateY(-1px);
+        }
+
+        .btn-danger:active {
+            transform: translateY(0);
         }
         
         .input-field {
-            background: white;
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            padding: 12px 16px;
-            transition: all 0.3s ease;
+            background: #fbfcfe;
+            border: 1.5px solid var(--border-color);
+            border-radius: 10px;
+            padding: 11px 14px;
+            transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
-        
+
+        .input-field:hover {
+            border-color: #cbd5e1;
+        }
+
         .input-field:focus {
             outline: none;
+            background: #ffffff;
             border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-            transform: translateY(-1px);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
         }
-        
+
         .search-bar {
-            background: white;
-            border: 2px solid var(--border-color);
-            border-radius: 24px;
-            padding: 12px 20px;
-            transition: all 0.3s ease;
+            background: #fbfcfe;
+            border: 1.5px solid var(--border-color);
+            border-radius: 999px;
+            padding: 10px 18px;
+            transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }
-        
+
         .search-bar:focus {
             outline: none;
+            background: #ffffff;
             border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
         }
         
         .table-row:hover {
@@ -243,19 +311,31 @@
         }
         
         .badge-success {
-            background-color: var(--secondary);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
+            background-color: #ecfdf5;
+            color: #047857;
+            border: 1px solid #a7f3d0;
+            padding: 3px 10px;
+            border-radius: 999px;
             font-size: 12px;
             font-weight: 600;
         }
-        
+
         .badge-danger {
-            background-color: var(--danger);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
+            background-color: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-warning {
+            background-color: #fffbeb;
+            color: #b45309;
+            border: 1px solid #fde68a;
+            padding: 3px 10px;
+            border-radius: 999px;
             font-size: 12px;
             font-weight: 600;
         }
@@ -295,20 +375,32 @@
         
         /* Custom scrollbar */
         ::-webkit-scrollbar {
-            width: 8px;
+            width: 10px;
+            height: 10px;
         }
-        
+
         ::-webkit-scrollbar-track {
             background: transparent;
         }
-        
+
         ::-webkit-scrollbar-thumb {
-            background-color: var(--primary);
-            border-radius: 4px;
+            background-color: #cbd5e1;
+            border: 2px solid transparent;
+            background-clip: content-box;
+            border-radius: 8px;
         }
-        
+
         ::-webkit-scrollbar-thumb:hover {
-            background-color: var(--primary-hover);
+            background-color: #94a3b8;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        /* The dark sidebar needs a lighter, on-brand scrollbar. */
+        .sidebar::-webkit-scrollbar-thumb {
+            background-color: rgba(148, 163, 184, 0.4);
+            border: 2px solid transparent;
+            background-clip: content-box;
         }
         
         /* Animations */
@@ -335,7 +427,7 @@
 <body class="font-sans antialiased" data-page="{% block page_type %}{% endblock %}">
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
-        <aside class="sidebar w-64 flex-shrink-0">
+        <aside id="sidebar" class="sidebar sidebar-drawer w-64 flex-shrink-0">
             <div class="flex flex-col h-full relative z-10">
                 <!-- Logo -->
                 <div class="flex items-center justify-center h-20 px-6 border-b border-gray-700">
@@ -350,44 +442,70 @@
                 
                 <!-- Navigation -->
                 <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-                    <a href="{{ url_for('dashboard') }}" class="sidebar-link flex items-center text-sm font-medium">
+                    <a href="{{ url_for('dashboard_web.index') }}" class="sidebar-link flex items-center text-sm font-medium">
                         <i class="fas fa-tachometer-alt mr-3 sidebar-icon w-5"></i>
                         <span class="sidebar-text">Dashboard</span>
                     </a>
                     
-                    <a href="{{ url_for('inventory') }}" class="sidebar-link flex items-center text-sm font-medium">
+                    <a href="{{ url_for('inventory.index') }}" class="sidebar-link flex items-center text-sm font-medium">
                         <i class="fas fa-boxes mr-3 sidebar-icon w-5"></i>
                         <span class="sidebar-text">Inventory</span>
                     </a>
                     
-                    <a href="{{ url_for('sales') }}" class="sidebar-link flex items-center text-sm font-medium">
+                    <a href="{{ url_for('sales_web.index') }}" class="sidebar-link flex items-center text-sm font-medium">
                         <i class="fas fa-shopping-cart mr-3 sidebar-icon w-5"></i>
                         <span class="sidebar-text">Sales</span>
                     </a>
                     
+                    <a href="{{ url_for('customers.index') }}" class="sidebar-link flex items-center text-sm font-medium">
+                        <i class="fas fa-user-group mr-3 sidebar-icon w-5"></i>
+                        <span class="sidebar-text">Customers</span>
+                    </a>
+
                     {% if current_user.can_manage_suppliers() %}
-                    <a href="{{ url_for('suppliers') }}" class="sidebar-link flex items-center text-sm font-medium">
+                    <a href="{{ url_for('suppliers.index') }}" class="sidebar-link flex items-center text-sm font-medium">
                         <i class="fas fa-truck mr-3 sidebar-icon w-5"></i>
                         <span class="sidebar-text">Suppliers</span>
                     </a>
                     {% endif %}
-                    
+
+                    {% if current_user.can_manage_inventory() %}
+                    <a href="{{ url_for('purchase_orders_web.index') }}" class="sidebar-link flex items-center text-sm font-medium">
+                        <i class="fas fa-file-invoice mr-3 sidebar-icon w-5"></i>
+                        <span class="sidebar-text">Purchase Orders</span>
+                    </a>
+                    {% endif %}
+
+                    {% if current_user.can_manage_finances() %}
+                    <a href="{{ url_for('expenses_web.index') }}" class="sidebar-link flex items-center text-sm font-medium">
+                        <i class="fas fa-receipt mr-3 sidebar-icon w-5"></i>
+                        <span class="sidebar-text">Expenses</span>
+                    </a>
+                    {% endif %}
+
+                    {% if current_user.can_manage_inventory() %}
+                    <a href="{{ url_for('maintenance_web.index') }}" class="sidebar-link flex items-center text-sm font-medium">
+                        <i class="fas fa-screwdriver-wrench mr-3 sidebar-icon w-5"></i>
+                        <span class="sidebar-text">Maintenance</span>
+                    </a>
+                    {% endif %}
+
                     {% if current_user.can_manage_staff() %}
-                    <a href="{{ url_for('staff') }}" class="sidebar-link flex items-center text-sm font-medium">
+                    <a href="{{ url_for('staff_web.index') }}" class="sidebar-link flex items-center text-sm font-medium">
                         <i class="fas fa-users mr-3 sidebar-icon w-5"></i>
                         <span class="sidebar-text">Staff</span>
                     </a>
                     {% endif %}
                     
                     {% if current_user.can_view_reports() %}
-                    <a href="{{ url_for('reports') }}" class="sidebar-link flex items-center text-sm font-medium">
+                    <a href="{{ url_for('reports_web.index') }}" class="sidebar-link flex items-center text-sm font-medium">
                         <i class="fas fa-chart-bar mr-3 sidebar-icon w-5"></i>
                         <span class="sidebar-text">Reports</span>
                     </a>
                     {% endif %}
                     
-                    {% if current_user.can_manage_inventory() %}
-                    <a href="{{ url_for('settings') }}" class="sidebar-link flex items-center text-sm font-medium">
+                    {% if current_user.can_manage_settings() %}
+                    <a href="{{ url_for('settings_web.index') }}" class="sidebar-link flex items-center text-sm font-medium">
                         <i class="fas fa-cog mr-3 sidebar-icon w-5"></i>
                         <span class="sidebar-text">Settings</span>
                     </a>
@@ -404,9 +522,12 @@
                             <p class="text-sm font-medium text-white">{{ current_user.name }}</p>
                             <p class="text-xs text-gray-300">{{ current_user.role|title }}</p>
                         </div>
-                        <a href="{{ url_for('logout') }}" class="text-gray-300 hover:text-white transition-colors">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </a>
+                        <form method="POST" action="{{ url_for('dashboard_web.logout') }}" class="inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" title="Log out" class="text-gray-300 hover:text-white transition-colors">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -416,15 +537,20 @@
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
             <header class="header">
-                <div class="flex items-center justify-between px-8 py-4">
+                <div class="flex items-center justify-between px-4 sm:px-8 py-4">
                     <div class="flex items-center">
-                        <h1 class="ml-4 text-2xl font-bold text-blue-600">{% block page_title %}{% endblock %}</h1>
+                        <button type="button" id="sidebar-toggle" aria-controls="sidebar" aria-expanded="false"
+                                class="lg:hidden p-2.5 -ml-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg focus-visible:outline-2"
+                                aria-label="Open main navigation">
+                            <i class="fas fa-bars text-xl"></i>
+                        </button>
+                        <h1 class="ml-2 sm:ml-4 text-xl sm:text-2xl font-bold tracking-tight text-slate-800">{% block page_title %}{% endblock %}</h1>
                     </div>
                     
                     <div class="flex items-center space-x-6">
                         <!-- Notifications -->
-                        <div class="relative notification-container" x-data="{ open: false }">
-                            <button @click="toggleNotifications($event)" class="notification-button p-3 text-gray-400 hover:text-gray-600 transition-all hover:bg-gray-100 rounded-xl relative">
+                        <div class="relative notification-container">
+                            <button type="button" onclick="toggleNotifications(event)" class="notification-button p-3 text-gray-400 hover:text-gray-600 transition-all hover:bg-gray-100 rounded-xl relative">
                                 <i class="fas fa-bell text-xl"></i>
                                 {% if unread_notifications > 0 %}
                                 <span class="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center animate-pulse">
@@ -437,36 +563,36 @@
                         </div>
                         
                         <!-- User Profile -->
-                        <div class="relative" x-data="{ open: false }">
-                            <button @click="open = !open" class="flex items-center space-x-3 focus:outline-none hover:bg-gray-100 rounded-xl p-2 transition-all">
+                        <div class="profile-menu relative">
+                            <button type="button" id="user-menu-button" aria-haspopup="true" aria-expanded="false"
+                                    class="flex items-center space-x-3 focus:outline-none hover:bg-gray-100 rounded-xl p-2 transition-all">
                                 <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center shadow-md">
                                     <span class="text-white text-sm font-bold">{{ current_user.name[0]|upper }}</span>
                                 </div>
                                 <span class="hidden md:inline-block text-sm font-medium text-gray-700">{{ current_user.name }}</span>
-                                <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                                <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform" data-profile-chevron></i>
                             </button>
-                            
-                            <div x-show="open" 
-                                 @click.away="open = false"
-                                 class="absolute right-0 mt-2 w-56 glass rounded-xl shadow-xl py-2 z-50"
-                                 x-transition:enter="transition ease-out duration-200"
-                                 x-transition:enter-start="transform opacity-0 scale-95"
-                                 x-transition:enter-end="transform opacity-100 scale-100"
-                                 x-transition:leave="transition ease-in duration-150"
-                                 x-transition:leave-start="transform opacity-100 scale-100"
-                                 x-transition:leave-end="transform opacity-0 scale-95">
-                                <a href="#" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
-                                    <i class="fas fa-user mr-3 text-gray-400"></i>Your Profile
+
+                            <div id="user-menu" role="menu" data-profile-menu hidden
+                                 class="absolute right-0 mt-2 w-64 glass rounded-xl shadow-2xl py-2 z-[100]">
+                                <div class="px-4 py-3 border-b border-gray-100 mb-1">
+                                    <p class="text-sm font-semibold text-gray-800 truncate">{{ current_user.name }}</p>
+                                    <p class="text-xs text-gray-500 truncate">{{ current_user.role|title }} · {{ current_user.email }}</p>
+                                </div>
+                                {% if current_user.can_manage_inventory() %}
+                                <a href="{{ url_for('settings_web.index') }}" data-close-profile-menu
+                                   class="flex items-center px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors" role="menuitem">
+                                    <i class="fas fa-user-cog mr-3 text-gray-400 w-4 text-center"></i>Profile &amp; Settings
                                 </a>
-                                    {% if current_user.can_manage_inventory() %}
-                                    <a href="{{ url_for('settings') }}" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
-                                        <i class="fas fa-cog mr-3 text-gray-400"></i>Settings
-                                    </a>
-                                    {% endif %}
+                                {% endif %}
                                 <div class="border-t border-gray-200 my-2"></div>
-                                <a href="{{ url_for('logout') }}" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
-                                    <i class="fas fa-sign-out-alt mr-3 text-gray-400"></i>Logout
-                                </a>
+                                <form method="POST" action="{{ url_for('dashboard_web.logout') }}">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" data-close-profile-menu
+                                            class="w-full flex items-center px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors" role="menuitem">
+                                        <i class="fas fa-sign-out-alt mr-3 text-red-400 w-4 text-center"></i>Logout
+                                    </button>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -515,6 +641,9 @@
     {% block extra_js %}{% endblock %}
     
     <!-- Real-time Database Integration -->
+    <!-- Shared helpers: escaping, JSON API calls, toasts, modals. Must load
+         before any page script that uses JRF.* or escapeHtml(). -->
+    <script src="{{ url_for('static', filename='js/api.js') }}"></script>
     <script src="{{ url_for('static', filename='js/realtime.js') }}"></script>
     
     <!-- Notification CSS for proper overlay -->
@@ -696,7 +825,7 @@
                 <!-- Footer -->
                 {% if recent_notifications %}
                 <div class="p-3 border-t border-gray-200">
-                    <a href="/notifications" class="block w-full text-center text-sm text-blue-600 hover:text-blue-800">
+                    <a href="{{ url_for('dashboard_web.notifications') }}" class="block w-full text-center text-sm text-blue-600 hover:text-blue-800">
                         View all notifications
                     </a>
                 </div>
@@ -890,6 +1019,66 @@
             // This would be called from other parts of the application
             console.log('Creating notification:', { title, message, type, category, actionUrl, actionText });
         }
+    </script>
+
+    <!-- Account menu controller (vanilla JS - independent of Alpine/CDN so it can
+         never be "stuck open". Hidden by default, closed on outside click + Escape). -->
+    <script>
+        (function () {
+            const btn = document.getElementById('user-menu-button');
+            const menu = document.getElementById('user-menu');
+            if (!btn || !menu) return;
+
+            const chevron = btn.querySelector('[data-profile-chevron]');
+
+            function setOpen(open) {
+                menu.hidden = !open;
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
+            }
+
+            setOpen(false); // Explicit default - never visible until toggled.
+
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                setOpen(menu.hidden);
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!menu.hidden && !e.target.closest('.profile-menu')) setOpen(false);
+            });
+
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !menu.hidden) { setOpen(false); btn.focus(); }
+            });
+
+            menu.addEventListener('click', function (e) {
+                if (e.target.closest('[data-close-profile-menu]')) setOpen(false);
+            });
+
+            // Mobile sidebar drawer (no-op on desktop where the button is hidden).
+            const sideBar = document.getElementById('sidebar');
+            const sideToggle = document.getElementById('sidebar-toggle');
+            if (sideBar && sideToggle) {
+                function setSidebar(open) {
+                    sideBar.classList.toggle('sidebar-open', open);
+                    sideToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                }
+                sideToggle.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    setSidebar(!sideBar.classList.contains('sidebar-open'));
+                });
+                document.addEventListener('click', function (e) {
+                    if (sideBar.classList.contains('sidebar-open') &&
+                        !e.target.closest('#sidebar') && !e.target.closest('#sidebar-toggle')) {
+                        setSidebar(false);
+                    }
+                });
+                document.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape' && sideBar.classList.contains('sidebar-open')) setSidebar(false);
+                });
+            }
+        })();
     </script>
 </body>
 </html>

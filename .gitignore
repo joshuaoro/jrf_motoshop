@@ -1,4 +1,44 @@
+# Environment / secrets
+# .env holds deployment settings; .env.local holds your personal overrides
+# (and wins over .env). Only the *.example templates are tracked.
 .env
+.env.*
+!.env.example
+!.env.local.example
+
+# Python
 __pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenvs
+.venv/
+venv/
+env/
+
+# Flask
 instance/
-*.pyc
+*.db
+*.sqlite3
+
+# Runtime artifacts
+logs/
+backups/
+*.log
+
+# Testing / tooling
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

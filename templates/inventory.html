@@ -25,13 +25,9 @@
         height: 100%;
         border-radius: 0.25rem;
     }
-    .stock-low-1 { width: 1%; }
-    .stock-low-2 { width: 2%; }
-    .stock-low-3 { width: 3%; }
-    .stock-low-4 { width: 4%; }
-    .stock-full { width: 100%; }
     .stock-red { background-color: #ef4444; }
     .stock-yellow { background-color: #eab308; }
+    .stock-blue { background-color: #3b82f6; }
     .stock-green { background-color: #22c55e; }
     .part-row {
         cursor: pointer;
@@ -113,7 +109,9 @@
                     data-brand="{{ part.brand | e }}"
                     data-type="{{ part.part_type | e }}"
                     data-price="{{ part.price }}"
+                    data-cost="{{ part.cost_price }}"
                     data-stock="{{ part.stock_quantity }}"
+                    data-min-stock="{{ part.min_stock_level }}"
                     data-suppliers='{{ part.suppliers|tojson }}'>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
@@ -157,23 +155,24 @@
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="text-sm font-medium">{{ part.stock_quantity }} in stock</div>
                         <div class="stock-progress mt-1">
-                            {% if part.stock_quantity == 0 %}
-                                <div class="stock-progress-bar stock-red stock-low-1"></div>
-                            {% elif part.stock_quantity < 5 %}
-                                <div class="stock-progress-bar stock-yellow stock-low-{{ part.stock_quantity }}"></div>
-                            {% else %}
-                                <div class="stock-progress-bar stock-green stock-full"></div>
-                            {% endif %}
+                            <div class="stock-progress-bar
+                                 {{ 'stock-red' if part.stock_status == 'out_of_stock' or part.stock_status == 'low_stock'
+                                    else ('stock-blue' if part.stock_status == 'moderate' else 'stock-green') }}"
+                                 style="width: {{ part.stock_percent }}%"></div>
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        {% if part.stock_quantity == 0 %}
+                        {% if part.stock_status == 'out_of_stock' %}
                             <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
                                 Out of Stock
                             </span>
-                        {% elif part.stock_quantity < 5 %}
+                        {% elif part.stock_status == 'low_stock' %}
                             <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
                                 Low Stock
+                            </span>
+                        {% elif part.stock_status == 'moderate' %}
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                Moderate
                             </span>
                         {% else %}
                             <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
@@ -197,7 +196,7 @@
                 {% else %}
                 <tr>
                     <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
-                        No parts found. <a href="#" id="addFirstPart" class="text-blue-600 hover:text-blue-800">Add your first part</a>
+                        No parts found. <button type="button" id="addFirstPart" class="text-blue-600 hover:text-blue-800 font-medium">Add your first part</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -380,6 +379,22 @@
                                 </div>
                                 
                                 <div class="sm:col-span-3">
+                                    <label for="partCost" class="block text-sm font-medium text-gray-700">
+                                        Cost Price (₱)
+                                        <span class="text-xs font-normal text-gray-400">— what you pay</span>
+                                    </label>
+                                    <div class="mt-1 relative rounded-md shadow-sm">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <span class="text-gray-500 sm:text-sm">₱</span>
+                                        </div>
+                                        <input type="number" step="0.01" min="0" name="partCost" id="partCost"
+                                               class="focus:ring-blue-500 focus:border-blue-500 block w-full pl-7 pr-12 sm:text-sm border-gray-300 rounded-md"
+                                               placeholder="0.00">
+                                    </div>
+                                    <p class="mt-1 text-xs text-gray-400">Drives the margin and profitability reports.</p>
+                                </div>
+
+                                <div class="sm:col-span-3">
                                     <label for="partStock" class="block text-sm font-medium text-gray-700">Stock Quantity</label>
                                     <input type="number" name="partStock" id="partStock" min="0" required
                                            class="mt-1 focus:ring-blue-500 focus:border-blue-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
@@ -480,7 +495,6 @@
                     // Clean the data before parsing (remove any HTML entities)
                     const cleanData = dataAttr.replace(/&quot;/g, '"').replace(/&#39;/g, "'");
                     partsData = JSON.parse(cleanData);
-                    console.log('Loaded parts data:', partsData.length, 'items');
                     // Ensure all parts have both id and part_id
                     partsData = partsData.map(p => ({
                         ...p,
@@ -489,7 +503,6 @@
                         type: p.type || p.part_type,
                         stock: p.stock || p.stock_quantity
                     }));
-                    console.log('Normalized parts data sample:', partsData.slice(0, 2));
                 } else {
                     console.warn('No data-parts attribute found, will use row data as fallback');
                     partsData = [];
@@ -554,16 +567,17 @@
     });
     
     // Supplier management functions
-    function loadSuppliers() {
-        fetch('/api/suppliers')
-            .then(response => response.json())
-            .then(suppliers => {
-                allSuppliers = suppliers;
-                updateSupplierDropdown();
-            })
-            .catch(error => {
-                console.error('Error loading suppliers:', error);
-            });
+    async function loadSuppliers() {
+        const result = await JRF.api('/api/suppliers?per_page=100');
+        if (!result.ok) {
+            JRF.notifyError(result, 'Could not load suppliers.');
+            return;
+        }
+        // The endpoint returns {suppliers: [...], pagination: {...}}. Assigning
+        // the envelope straight to allSuppliers left .forEach() undefined, so
+        // the dropdown silently stayed empty.
+        allSuppliers = (result.data && result.data.suppliers) || [];
+        updateSupplierDropdown();
     }
     
     function updateSupplierDropdown() {
@@ -622,7 +636,7 @@
             const badge = document.createElement('span');
             badge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800';
             badge.innerHTML = `
-                ${supplier.name}
+                ${escapeHtml(supplier.name)}
                 <button type="button" onclick="removeSupplierFromPart(${supplierId})" class="ml-2 text-blue-600 hover:text-blue-800">
                     <i class="fas fa-times"></i>
                 </button>
@@ -668,7 +682,8 @@
             brand: row.getAttribute('data-brand'),
             type: row.getAttribute('data-type'),
             price: parseFloat(row.getAttribute('data-price')),
-            stock: parseInt(row.getAttribute('data-stock'))
+            stock: parseInt(row.getAttribute('data-stock')),
+            minStock: parseInt(row.getAttribute('data-min-stock'), 10) || 5
         };
         
         // Update modal content
@@ -685,18 +700,23 @@
         // Update stock badge and status
         const stockBadge = document.getElementById('modalStockBadge');
         const stockStatus = document.getElementById('modalStockStatus');
-        if (productData.stock > 10) {
-            stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-green-100 text-green-800';
-            stockBadge.textContent = `${productData.stock} in stock`;
-            stockStatus.textContent = 'Good availability';
-        } else if (productData.stock > 0) {
-            stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800';
-            stockBadge.textContent = `${productData.stock} left`;
-            stockStatus.textContent = 'Low stock - reorder soon';
-        } else {
+        const reorderPoint = productData.minStock;
+        if (productData.stock <= 0) {
             stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-red-100 text-red-800';
             stockBadge.textContent = 'Out of stock';
             stockStatus.textContent = 'Currently unavailable';
+        } else if (productData.stock <= reorderPoint) {
+            stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-yellow-100 text-yellow-800';
+            stockBadge.textContent = `${productData.stock} left`;
+            stockStatus.textContent = 'Low stock - reorder soon';
+        } else if (productData.stock <= reorderPoint * 2) {
+            stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-blue-100 text-blue-800';
+            stockBadge.textContent = `${productData.stock} in stock`;
+            stockStatus.textContent = 'Moderate stock';
+        } else {
+            stockBadge.className = 'px-4 py-2 rounded-full text-sm font-semibold bg-green-100 text-green-800';
+            stockBadge.textContent = `${productData.stock} in stock`;
+            stockStatus.textContent = 'Good availability';
         }
         
         // Load supplier information
@@ -732,7 +752,7 @@
                         <div class="flex items-center justify-between bg-white rounded-lg p-2">
                             <div class="flex items-center">
                                 <i class="fas fa-building text-blue-600 mr-2"></i>
-                                <span class="text-sm font-medium text-blue-900">${supplier.name}</span>
+                                <span class="text-sm font-medium text-blue-900">${escapeHtml(supplier.name)}</span>
                             </div>
                             <span class="text-xs text-blue-600">Primary</span>
                         </div>
@@ -750,47 +770,27 @@
     }
     
     // Load sales performance data for inventory modal
-    function loadSalesPerformanceForInventory(partId) {
-        try {
-            fetch(`/api/parts/${partId}/sales-metrics`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to load sales metrics');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    const totalSoldEl = document.getElementById('modalTotalSold');
-                    const revenueEl = document.getElementById('modalRevenue');
-                    const avgPriceEl = document.getElementById('modalAvgPrice');
+    async function loadSalesPerformanceForInventory(partId) {
+        const setMetrics = (sold, revenue, avgPrice) => {
+            const soldEl = document.getElementById('modalTotalSold');
+            const revenueEl = document.getElementById('modalRevenue');
+            const avgEl = document.getElementById('modalAvgPrice');
+            if (soldEl) soldEl.textContent = sold;
+            if (revenueEl) revenueEl.textContent = JRF.currency(revenue);
+            if (avgEl) avgEl.textContent = JRF.currency(avgPrice);
+        };
 
-                    if (totalSoldEl) {
-                        totalSoldEl.textContent = data.total_sold ?? 0;
-                    }
-                    if (revenueEl) {
-                        const revenue = data.total_revenue ?? 0;
-                        revenueEl.textContent = `₱${Number(revenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-                    }
-                    if (avgPriceEl) {
-                        const avgPrice = data.avg_price ?? 0;
-                        avgPriceEl.textContent = `₱${Number(avgPrice).toFixed(2)}`;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading sales metrics for inventory modal:', error);
-                    const totalSoldEl = document.getElementById('modalTotalSold');
-                    const revenueEl = document.getElementById('modalRevenue');
-                    const avgPriceEl = document.getElementById('modalAvgPrice');
-
-                    if (totalSoldEl) totalSoldEl.textContent = '0';
-                    if (revenueEl) revenueEl.textContent = '₱0.00';
-                    if (avgPriceEl) avgPriceEl.textContent = '₱0.00';
-                });
-        } catch (error) {
-            console.error('Unexpected error in loadSalesPerformanceForInventory:', error);
+        const result = await JRF.api(`/api/parts/${partId}/sales-metrics`);
+        if (!result.ok) {
+            // A part with no sales is normal, not an error worth a toast.
+            setMetrics(0, 0, 0);
+            return;
         }
+
+        const data = result.data || {};
+        setMetrics(data.total_sold ?? 0, data.total_revenue ?? 0, data.avg_price ?? 0);
     }
-    
+
     // Close product modal
     function closeProductModal() {
         document.getElementById('productModal').classList.add('hidden');
@@ -801,8 +801,7 @@
         try {
             const modal = document.getElementById('partModal');
             if (!modal) {
-                console.error('partModal not found');
-                alert('Error: Modal not found. Please refresh the page.');
+                JRF.notify('Could not open the form. Please refresh the page.', 'error');
                 return;
             }
             document.getElementById('modalTitle').textContent = 'Add New Part';
@@ -817,70 +816,56 @@
             
             modal.classList.remove('hidden');
         } catch (error) {
-            console.error('Error opening add part modal:', error);
-            alert('Error opening form. Please refresh the page.');
+            console.error('openAddPartModal failed', error);
+            JRF.notify('Could not open the form. Please refresh the page.', 'error');
         }
     }
     
+    /** Find a part by id in the embedded data, falling back to its table row. */
+    function findPart(partId) {
+        const wanted = parseInt(partId, 10);
+
+        const fromData = partsData.find(function (p) {
+            return parseInt(p.part_id || p.id, 10) === wanted;
+        });
+        if (fromData) return fromData;
+
+        const row = document.querySelector(`tr.part-row[data-id="${wanted}"]`);
+        if (!row) return null;
+
+        return {
+            id: wanted,
+            part_id: wanted,
+            name: row.getAttribute('data-name'),
+            brand: row.getAttribute('data-brand') || '',
+            part_type: row.getAttribute('data-type') || 'engine',
+            price: parseFloat(row.getAttribute('data-price')) || 0,
+            cost_price: parseFloat(row.getAttribute('data-cost')) || 0,
+            stock_quantity: parseInt(row.getAttribute('data-stock'), 10) || 0,
+            description: row.getAttribute('data-description') || '',
+        };
+    }
+
     function editPart(partId) {
         try {
-            console.log('editPart called with partId:', partId, 'type:', typeof partId);
-            console.log('partsData length:', partsData.length);
-            console.log('partsData sample:', partsData.slice(0, 2));
-            
-            // Try to find part in partsData array
-            let part = partsData.find(p => {
-                const pId = p.part_id || p.id;
-                const pIdNum = typeof pId === 'string' ? parseInt(pId) : pId;
-                const partIdNum = typeof partId === 'string' ? parseInt(partId) : partId;
-                return pIdNum == partIdNum || pId == partId;
-            });
-            
-            // If not found in partsData, try to get from the table row directly
+            const part = findPart(partId);
             if (!part) {
-                console.log('Part not found in partsData, trying to get from table row...');
-                const row = document.querySelector(`tr.part-row[data-id="${partId}"]`);
-                if (row) {
-                    part = {
-                        id: parseInt(row.getAttribute('data-id')),
-                        part_id: parseInt(row.getAttribute('data-id')),
-                        name: row.getAttribute('data-name'),
-                        brand: row.getAttribute('data-brand') || '',
-                        part_type: row.getAttribute('data-type') || 'engine',
-                        type: row.getAttribute('data-type') || 'engine',
-                        price: parseFloat(row.getAttribute('data-price')) || 0,
-                        stock_quantity: parseInt(row.getAttribute('data-stock')) || 0,
-                        stock: parseInt(row.getAttribute('data-stock')) || 0,
-                        description: row.getAttribute('data-description') || ''
-                    };
-                    console.log('Found part from row:', part);
-                }
-            }
-            
-            if (!part) {
-                console.error('Part not found with id:', partId);
-                console.error('Available part IDs in partsData:', partsData.map(p => p.part_id || p.id));
-                alert('Error: Part not found. Please refresh the page.');
+                JRF.notify('That part is no longer on this page. Refresh and try again.', 'error');
                 return;
             }
-            
-            console.log('Found part:', part);
-            
+
             closeProductModal();
-            
+
             const modal = document.getElementById('partModal');
-            if (!modal) {
-                console.error('partModal not found');
-                alert('Error: Modal not found. Please refresh the page.');
-                return;
-            }
-            
+            if (!modal) return;
+
             document.getElementById('modalTitle').textContent = 'Edit Part';
             document.getElementById('partId').value = part.part_id || part.id;
             document.getElementById('partName').value = part.name || '';
             document.getElementById('partBrand').value = part.brand || '';
             document.getElementById('partType').value = part.part_type || part.type || 'engine';
             document.getElementById('partPrice').value = part.price || '0.00';
+            document.getElementById('partCost').value = part.cost_price ?? '0.00';
             document.getElementById('partStock').value = part.stock_quantity || part.stock || '0';
             document.getElementById('partDescription').value = part.description || '';
             
@@ -897,8 +882,8 @@
             currentPartId = partId;
             modal.classList.remove('hidden');
         } catch (error) {
-            console.error('Error editing part:', error);
-            alert('Error opening edit form. Please refresh the page.');
+            console.error('editPart failed', error);
+            JRF.notify('Could not open the edit form. Please refresh the page.', 'error');
         }
     }
     
@@ -907,105 +892,58 @@
         currentPartId = null;
     }
     
-    function savePart() {
-        try {
-            const form = document.getElementById('partForm');
-            if (!form) {
-                alert('Error: Form not found');
-                return;
-            }
-            
-            const formData = new FormData(form);
-            
-            const partData = {
-                name: formData.get('partName'),
-                brand: formData.get('partBrand'),
-                part_type: formData.get('partType'),
-                price: parseFloat(formData.get('partPrice')) || 0,
-                stock_quantity: parseInt(formData.get('partStock')) || 0,
-                description: formData.get('partDescription') || '',
-                supplier_ids: Array.from(selectedSupplierIds)
-            };
-            
-            // Validate required fields
-            if (!partData.name || !partData.brand || !partData.part_type) {
-                alert('Please fill in all required fields');
-                return;
-            }
-            
-            const partId = formData.get('partId');
-            const url = partId ? `/api/parts/${partId}` : '/api/parts';
-            const method = partId ? 'PUT' : 'POST';
-            
-            console.log('Saving part:', { url, method, partData });
-            
-            fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(partData)
-            })
-            .then(response => {
-                console.log('Response status:', response.status);
-                return response.json();
-            })
-            .then(data => {
-                console.log('Response data:', data);
-                if (data.success) {
-                    window.location.reload();
-                } else {
-                    alert(data.message || 'Failed to save part');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while saving the part: ' + error.message);
-            });
-        } catch (error) {
-            console.error('Error in savePart:', error);
-            alert('An error occurred: ' + error.message);
+    async function savePart() {
+        const form = document.getElementById('partForm');
+        if (!form) return;
+
+        const formData = new FormData(form);
+        const partData = {
+            name: formData.get('partName'),
+            brand: formData.get('partBrand'),
+            part_type: formData.get('partType'),
+            price: formData.get('partPrice') || '0',
+            cost_price: formData.get('partCost') || '0',
+            stock_quantity: parseInt(formData.get('partStock'), 10) || 0,
+            description: formData.get('partDescription') || null,
+            supplier_ids: Array.from(selectedSupplierIds),
+        };
+
+        if (!partData.name || !partData.brand || !partData.part_type) {
+            JRF.notify('Name, brand and type are required.', 'warning');
+            return;
         }
-    }
-    
-    function deletePart(partId) {
-        try {
-            currentPartId = partId;
-            const deleteModal = document.getElementById('deleteModal');
-            if (!deleteModal) {
-                console.error('deleteModal not found');
-                alert('Error: Delete modal not found. Please refresh the page.');
-                return;
-            }
-            deleteModal.classList.remove('hidden');
-        } catch (error) {
-            console.error('Error opening delete modal:', error);
-            alert('Error opening delete confirmation. Please refresh the page.');
-        }
-    }
-    
-    function confirmDelete() {
-        if (!currentPartId) return;
-        
-        fetch(`/api/parts/${currentPartId}`, {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                window.location.reload();
-            } else {
-                alert(data.message || 'Failed to delete part');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while deleting the part');
+
+        const partId = formData.get('partId');
+        const result = await JRF.api(partId ? `/api/parts/${partId}` : '/api/parts', {
+            method: partId ? 'PUT' : 'POST',
+            body: partData,
         });
+
+        if (!result.ok) {
+            JRF.notifyError(result, 'Failed to save the part.');
+            return;
+        }
+        window.location.reload();
     }
-    
+
+    function deletePart(partId) {
+        currentPartId = partId;
+        JRF.openModal('deleteModal');
+    }
+
+    async function confirmDelete() {
+        if (!currentPartId) return;
+
+        const result = await JRF.api(`/api/parts/${currentPartId}`, { method: 'DELETE' });
+        if (!result.ok) {
+            JRF.notifyError(result, 'Failed to delete the part.');
+            return;
+        }
+        window.location.reload();
+    }
+
     function closeDeleteModal() {
-        document.getElementById('deleteModal').classList.add('hidden');
+        JRF.closeModal('deleteModal');
     }
 </script>
 {% endblock %}
