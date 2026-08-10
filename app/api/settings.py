@@ -9,9 +9,8 @@ from io import BytesIO
 from flask import Blueprint, jsonify, request, send_file
 from flask_login import current_user, login_required
 
-from app.core.time_utils import now_utc
-
 from app.api.utils import admin_required, error, permission_required
+from app.core.time_utils import now_utc
 from app.services.system import SettingsService
 
 settings_bp = Blueprint("settings", __name__)

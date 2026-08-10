@@ -45,6 +45,75 @@ line-length = 100
 target-version = ["py311"]
 extend-exclude = "migrations/versions"
 
+# ============================================================
+# Ruff
+#
+# Editors (Cursor/VS Code) run a bundled Ruff whether or not the project asks
+# them to, so without this section the Problems panel fills with ~200 findings
+# that CI does not enforce and the codebase deliberately does not follow. CI
+# runs black + flake8 (see setup.cfg and .github/workflows/ci.yml); this config
+# makes Ruff agree with them instead of contradicting them.
+#
+# Ruff is NOT a required dependency - it is not in requirements-dev.txt. This
+# only shapes the editor experience for anyone who has it.
+# ============================================================
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["migrations", ".venv"]
+
+[tool.ruff.lint]
+# Default rules (pyflakes + pycodestyle errors) catch the things that actually
+# break: undefined names, unused imports, syntax problems.
+extend-select = [
+    "DTZ",  # naive/deprecated datetime APIs (utcnow, utcfromtimestamp)
+]
+# NOT enabled: RUF100 (unused-noqa). flake8 is the linter CI runs, and it needs
+# `# noqa: F401/E402` on the deliberate re-exports and post-importorskip
+# imports. Ruff does not enforce those codes here (see per-file-ignores below),
+# so it considers the same directives redundant and strips them - which then
+# breaks the flake8 job. Leaving RUF100 off keeps the two tools from undoing
+# each other's work.
+ignore = [
+    # The codebase targets 3.11 but deliberately uses typing.List/Optional
+    # rather than PEP 585/604 builtins. Both are valid; churning ~90 call
+    # sites to satisfy a preference nothing enforces is not worth the diff.
+    "UP006",   # non-pep585-annotation  (List -> list)
+    "UP035",   # deprecated-import      (typing.List)
+    "UP045",   # non-pep604-annotation  (Optional[X] -> X | None)
+    # Decimal("0") is intentional and idiomatic for money: it documents that
+    # these are Decimal, not int, at a glance. Decimal(0) is equivalent.
+    "FURB157",
+    # E501 is black's job; setup.cfg already grants the same per-file waivers.
+    "E501",
+    # Deliberate resilience boundaries, each already commented at the site: the
+    # /health endpoint, the catch-all error handler, the notification-bell
+    # context processor, and the Celery retry wrapper all exist precisely to
+    # convert *any* failure into a degraded response rather than a 500. See
+    # app/core/factory.py::health_check and app/core/security.py.
+    "BLE001",
+    # Class-level dicts on config/service classes (CSP policy, DEFAULT_SETTINGS)
+    # are intentional shared configuration, never mutated per instance.
+    "RUF012",
+    # Deliberately wrapped single messages, not accidental concatenation.
+    "ISC004",
+    # datetime.min/max are used as explicit sentinel bounds in date filtering,
+    # compared against this codebase's naive-UTC timestamps on purpose.
+    "DTZ901",
+    # See the note above extend-select: flake8 (the linter CI runs) requires
+    # the `# noqa: F401/E402` directives that Ruff considers redundant, so
+    # letting Ruff strip them breaks the CI lint job.
+    "RUF100",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Re-exports and deliberate late imports, matching setup.cfg's flake8 waivers.
+"app/schemas/__init__.py" = ["E402", "F401"]
+"app/core/extensions.py" = ["E402", "F401"]
+"tests/conftest.py" = ["E402"]
+"tests/browser/conftest.py" = ["E402"]
+"app/models/__init__.py" = ["F401"]
+
 [tool.mypy]
 python_version = "3.11"
 warn_unused_configs = true

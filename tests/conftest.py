@@ -15,10 +15,10 @@ import pytest
 os.environ["FLASK_ENV"] = "testing"
 os.environ.pop("DATABASE_URL", None)
 
-from app import create_app  # noqa: E402
-from app.core.extensions import db as _db  # noqa: E402
-from app.models import Customer, Part, Supplier, User  # noqa: E402
-from app.services.system import SettingsService  # noqa: E402
+from app import create_app
+from app.core.extensions import db as _db
+from app.models import Customer, Part, Supplier, User
+from app.services.system import SettingsService
 
 
 @pytest.fixture(scope="session")

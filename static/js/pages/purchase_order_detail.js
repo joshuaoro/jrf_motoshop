@@ -37,6 +37,11 @@
                 showError(JRF.errorMessage(body, 'Could not change the status.'));
                 return;
             }
+            // Drain the body before navigating. fetch() resolves on response
+            // *headers*, so reloading here tears down the page while the
+            // response is still streaming - the browser aborts the request,
+            // and whether the server's commit already landed is a race.
+            await response.json().catch(() => null);
             location.reload();
         } catch (error) {
             console.error(error);
@@ -91,6 +96,7 @@
                     showError(JRF.errorMessage(body, 'Could not receive the items.'));
                     return;
                 }
+                await response.json().catch(() => null);
                 location.reload();
             } catch (error) {
                 console.error(error);

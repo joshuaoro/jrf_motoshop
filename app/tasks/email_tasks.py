@@ -7,6 +7,7 @@ When either is absent the tasks return a ``skipped`` result instead of raising
 and burning through Celery retries.
 """
 
+import importlib.util
 import logging
 
 from celery import shared_task
@@ -25,15 +26,16 @@ def mail_unavailable_reason() -> str | None:
         return "email_notifications_disabled"
     if not current_app.config.get("MAIL_SERVER"):
         return "mail_server_not_configured"
-    try:
-        import flask_mail  # noqa: F401
-    except ImportError:
+    # Availability probe, not a use: the real import happens in send_email_task
+    # once we know the feature is configured. find_spec avoids importing the
+    # module (and avoids an "unused import" that linters keep trying to delete).
+    if importlib.util.find_spec("flask_mail") is None:
         return "flask_mail_not_installed"
     return None
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_email_task(self, to_email: str, subject: str, body: str, html_body: str = None):
+def send_email_task(self, to_email: str, subject: str, body: str, html_body: str | None = None):
     """Send one email, retrying only on genuine delivery failures."""
     reason = mail_unavailable_reason()
     if reason:

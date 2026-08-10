@@ -31,7 +31,7 @@ class CustomerService:
 
     @staticmethod
     def get_customers(
-        page: int = 1, per_page: int = 20, search: str = None, active_only: bool = True
+        page: int = 1, per_page: int = 20, search: str | None = None, active_only: bool = True
     ) -> Tuple[List[Customer], int]:
         query = Customer.query
 
@@ -149,11 +149,11 @@ class SalesService:
     def get_sales(
         page: int = 1,
         per_page: int = 20,
-        start_date: datetime = None,
-        end_date: datetime = None,
-        staff_id: int = None,
-        customer_id: int = None,
-        payment_status: str = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        staff_id: Optional[int] = None,
+        customer_id: Optional[int] = None,
+        payment_status: Optional[str] = None,
     ) -> Tuple[List[Sale], int]:
         query = Sale.query
 
@@ -327,9 +327,9 @@ class SalesService:
         sale_id: int,
         amount,
         payment_method: str,
-        reference_number: str = None,
-        notes: str = None,
-        user_id: int = None,
+        reference_number: Optional[str] = None,
+        notes: Optional[str] = None,
+        user_id: Optional[int] = None,
     ) -> Payment:
         """Record a payment against a sale and refresh its payment status."""
         sale = db.session.get(Sale, sale_id)
@@ -422,7 +422,9 @@ class SalesService:
         return True
 
     @staticmethod
-    def get_sales_summary(start_date: datetime = None, end_date: datetime = None) -> dict:
+    def get_sales_summary(
+        start_date: Optional[datetime] = None, end_date: Optional[datetime] = None
+    ) -> dict:
         """Sales totals for a period, excluding voided sales."""
         query = db.session.query(
             func.count(Sale.id).label("total_sales"),
@@ -449,7 +451,7 @@ class SalesService:
 
     @staticmethod
     def get_top_selling_parts(
-        limit: int = 10, start_date: datetime = None, end_date: datetime = None
+        limit: int = 10, start_date: datetime | None = None, end_date: datetime | None = None
     ) -> List[dict]:
         """Best sellers by units sold, excluding voided sales."""
         query = (

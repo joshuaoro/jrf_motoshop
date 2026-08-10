@@ -3,6 +3,7 @@ Celery configuration for background tasks
 """
 
 from celery import Celery
+
 from app.core.factory import create_app
 
 

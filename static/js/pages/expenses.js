@@ -71,6 +71,10 @@
                 alert(JRF.errorMessage(payload, 'Could not delete the expense.'));
                 return;
             }
+            // Drain the body before navigating. fetch() resolves on response
+            // *headers*, so reloading here tears the page down mid-response
+            // and the browser aborts the still-open request.
+            await response.json().catch(() => null);
             location.reload();
         } catch (error) {
             console.error(error);
@@ -146,6 +150,7 @@
                 showError(JRF.errorMessage(body, 'Could not save the expense.'));
                 return;
             }
+            await response.json().catch(() => null);
             location.reload();
         } catch (error) {
             console.error(error);

@@ -2,8 +2,8 @@
 Notifications API blueprint
 """
 
-from flask import Blueprint, request, jsonify
-from flask_login import login_required, current_user
+from flask import Blueprint, jsonify, request
+from flask_login import current_user, login_required
 
 from app.api.utils import (
     admin_required,

@@ -79,7 +79,7 @@ def load_form(schema, form, *, partial: bool = False):
     correctly: a plain ``dict(form)`` would keep only the first value.
     """
     data = {}
-    for key in form.keys():
+    for key in form:
         values = form.getlist(key)
         data[key] = values if len(values) > 1 else values[0]
 

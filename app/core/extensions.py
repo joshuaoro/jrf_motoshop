@@ -2,11 +2,12 @@
 Flask extensions initialization
 """
 
-from flask_sqlalchemy import SQLAlchemy
+import logging
+
 from flask_login import LoginManager
 from flask_migrate import Migrate
+from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
-import logging
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -19,7 +20,7 @@ csrf = CSRFProtect()
 # extension from one place without two Limiter instances existing - the
 # previous duplicate meant `@limiter.limit` decorators registered against an
 # object that was never init_app'd, and so never actually limited anything.
-from app.core.security import limiter  # noqa: E402,F401  (re-export)
+from app.core.security import limiter  # noqa: F401  (re-export)
 
 # Login manager config
 login_manager.login_view = "dashboard_web.login"
@@ -42,8 +43,7 @@ def load_user(user_id):
 @login_manager.unauthorized_handler
 def handle_unauthorized():
     """Send API callers JSON and browsers the login page."""
-    from flask import redirect, request, url_for, jsonify
-    from flask import flash
+    from flask import flash, jsonify, redirect, request, url_for
 
     if request.path.startswith("/api/"):
         return jsonify({"error": "Authentication required", "status": 401}), 401

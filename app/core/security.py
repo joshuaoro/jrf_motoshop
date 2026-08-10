@@ -231,7 +231,7 @@ def register_error_handlers(app):
     from app.api.utils import ApiError
     from app.core.extensions import db
 
-    def respond(status: int, message: str, template: str = None, details=None):
+    def respond(status: int, message: str, template: str | None = None, details=None):
         if wants_json():
             payload = {"error": message, "status": status}
             if details:

@@ -4,14 +4,14 @@ Web inventory blueprint
 
 import logging
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for
-from flask_login import login_required, current_user
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
 from marshmallow import ValidationError
 
 from app.api.utils import load_form
 from app.models import Supplier
-from app.services.inventory import InventoryService, SupplierService
 from app.schemas import PartSchema, SupplierSchema
+from app.services.inventory import InventoryService, SupplierService
 
 inventory_web_bp = Blueprint("inventory", __name__, template_folder="../../templates")
 logger = logging.getLogger(__name__)

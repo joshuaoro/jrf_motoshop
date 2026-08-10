@@ -7,7 +7,7 @@ queries, so a rule changed in one place cannot go stale here.
 
 import logging
 import subprocess
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from celery import shared_task
@@ -167,7 +167,11 @@ def _prune_old_backups(backup_dir: Path, retention_days: int) -> int:
 
     for path in backup_dir.glob("jrf_backup_*.sql"):
         try:
-            if datetime.utcfromtimestamp(path.stat().st_mtime) < cutoff:
+            # Naive UTC, to match `cutoff` (see app/core/time_utils). Not
+            # datetime.utcfromtimestamp: that is deprecated on 3.12+, which
+            # this project's pytest config turns into an error.
+            modified = datetime.fromtimestamp(path.stat().st_mtime, UTC).replace(tzinfo=None)
+            if modified < cutoff:
                 path.unlink()
                 removed += 1
                 logger.info("Removed old backup: %s", path.name)

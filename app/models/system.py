@@ -2,9 +2,10 @@
 Database models - Settings, Notifications, Audit & System Logs
 """
 
+import json
+
 from app.core.extensions import db
 from app.core.time_utils import now_utc, time_ago
-import json
 
 
 class Settings(db.Model):
@@ -183,15 +184,16 @@ class AuditLog(db.Model):
     def log(
         action_type: str,
         table_name: str,
-        record_id: int = None,
-        old_values: dict = None,
-        new_values: dict = None,
-        user_id: int = None,
-        request_id: str = None,
+        record_id: int | None = None,
+        old_values: dict | None = None,
+        new_values: dict | None = None,
+        user_id: int | None = None,
+        request_id: str | None = None,
     ):
         """Create audit log entry"""
-        from flask import request, has_request_context
         import json
+
+        from flask import has_request_context, request
 
         if has_request_context():
             ip = request.remote_addr
@@ -237,14 +239,15 @@ class SystemLog(db.Model):
         level: str,
         message: str,
         category: str = "system",
-        details: dict = None,
+        details: dict | None = None,
         source: str = "application",
-        user_id: int = None,
-        request_id: str = None,
+        user_id: int | None = None,
+        request_id: str | None = None,
     ):
         """Create system log entry"""
-        from flask import request, has_request_context
         import json
+
+        from flask import has_request_context, request
 
         if has_request_context():
             req_id = request_id or request.headers.get("X-Request-ID")

@@ -2,35 +2,35 @@
 Models package - exports all models
 """
 
-from app.models.user import User, VALID_ROLES
-from app.models.inventory import Part, Supplier, StockEntry, supplier_part
-from app.models.sales import Customer, Sale, SaleDetail, Payment
+from app.models.inventory import Part, StockEntry, Supplier, supplier_part
 from app.models.operations import (
-    PurchaseOrder,
-    PurchaseOrderItem,
     Expense,
     MaintenanceLog,
+    PurchaseOrder,
+    PurchaseOrderItem,
 )
-from app.models.system import Settings, Notification, AuditLog, SystemLog, BackupLog
+from app.models.sales import Customer, Payment, Sale, SaleDetail
+from app.models.system import AuditLog, BackupLog, Notification, Settings, SystemLog
+from app.models.user import VALID_ROLES, User
 
 __all__ = [
-    "User",
     "VALID_ROLES",
-    "Part",
-    "Supplier",
-    "StockEntry",
-    "supplier_part",
+    "AuditLog",
+    "BackupLog",
     "Customer",
-    "Sale",
-    "SaleDetail",
+    "Expense",
+    "MaintenanceLog",
+    "Notification",
+    "Part",
     "Payment",
     "PurchaseOrder",
     "PurchaseOrderItem",
-    "Expense",
-    "MaintenanceLog",
+    "Sale",
+    "SaleDetail",
     "Settings",
-    "Notification",
-    "AuditLog",
+    "StockEntry",
+    "Supplier",
     "SystemLog",
-    "BackupLog",
+    "User",
+    "supplier_part",
 ]

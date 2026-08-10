@@ -7,6 +7,14 @@ import logging
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
+from app.api.utils import (
+    error,
+    load_json,
+    pagination_args,
+    pagination_meta,
+    parse_date_arg,
+    permission_required,
+)
 from app.models import Payment
 from app.schemas import (
     PaymentSchema,
@@ -15,14 +23,6 @@ from app.schemas import (
     sale_create_schema,
     sale_schema,
     sales_schema,
-)
-from app.api.utils import (
-    error,
-    load_json,
-    pagination_args,
-    pagination_meta,
-    parse_date_arg,
-    permission_required,
 )
 from app.services.sales import SalesService
 

@@ -28,8 +28,8 @@ class UserService:
     def get_users(
         page: int = 1,
         per_page: int = 20,
-        search: str = None,
-        role: str = None,
+        search: Optional[str] = None,
+        role: Optional[str] = None,
         active_only: bool = False,
     ) -> Tuple[List[User], int]:
         query = User.query
@@ -60,7 +60,7 @@ class UserService:
         return db.session.get(User, user_id)
 
     @staticmethod
-    def _assert_unique(data: dict, exclude_id: int = None) -> None:
+    def _assert_unique(data: dict, exclude_id: Optional[int] = None) -> None:
         if data.get("email"):
             query = User.query.filter(User.email == data["email"])
             if exclude_id is not None:

@@ -52,10 +52,10 @@ class ExpenseService:
     def get_expenses(
         page: int = 1,
         per_page: int = 20,
-        category: str = None,
-        start_date: datetime = None,
-        end_date: datetime = None,
-        search: str = None,
+        category: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        search: Optional[str] = None,
     ) -> Tuple[List[Expense], int]:
         query = Expense.query
 
@@ -144,8 +144,8 @@ class PurchaseOrderService:
     def get_orders(
         page: int = 1,
         per_page: int = 20,
-        supplier_id: int = None,
-        status: str = None,
+        supplier_id: Optional[int] = None,
+        status: Optional[str] = None,
     ) -> Tuple[List[PurchaseOrder], int]:
         query = PurchaseOrder.query
 
@@ -389,7 +389,7 @@ class MaintenanceService:
     def get_logs(
         page: int = 1,
         per_page: int = 20,
-        maintenance_type: str = None,
+        maintenance_type: Optional[str] = None,
         overdue_only: bool = False,
     ) -> Tuple[List[MaintenanceLog], int]:
         query = MaintenanceLog.query

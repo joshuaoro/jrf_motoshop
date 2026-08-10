@@ -286,8 +286,17 @@ class TestPurchaseOrders:
             )
 
         # pending -> ordered -> receive
+        #
+        # "Mark ordered" POSTs and then calls location.reload(). Waiting on
+        # networkidle alone is not enough: it returns immediately while the
+        # current page is still idle and the reload has not begun, so the
+        # clicks below would land on the doomed pre-reload DOM. The receive
+        # inputs only exist once the server re-renders with can_receive, so
+        # that race submitted an empty item list and left the order 'ordered'.
+        # Wait for the badge to actually show the new status instead.
         logged_in.click("button:has-text('Mark ordered')")
-        logged_in.wait_for_load_state("networkidle")
+        logged_in.wait_for_selector("#statusBadge:has-text('ordered')", timeout=10_000)
+        logged_in.wait_for_selector(".receive-qty", timeout=10_000)
 
         logged_in.click("button:has-text('Fill all outstanding')")
         logged_in.click("#receiveSubmit")

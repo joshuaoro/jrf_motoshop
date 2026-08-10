@@ -196,7 +196,7 @@ class TestQueries:
 
     def test_inactive_parts_are_excluded_by_default(self, db, factories):
         factories.part(name="Gone", sku="G-1", is_active=False)
-        parts, total = InventoryService.get_parts()
+        _parts, total = InventoryService.get_parts()
         assert total == 0
 
 

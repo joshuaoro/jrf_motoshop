@@ -2,14 +2,16 @@
 Inventory service - business logic for parts and suppliers
 """
 
+import uuid
 from typing import List, Optional, Tuple
+
 from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
+
 from app.core.extensions import db
-from app.models import Part, Supplier, StockEntry, supplier_part
 from app.core.time_utils import now_utc
-import uuid
+from app.models import Part, StockEntry, Supplier, supplier_part
 
 
 class InventoryService:
@@ -19,9 +21,9 @@ class InventoryService:
     def get_parts(
         page: int = 1,
         per_page: int = 20,
-        search: str = None,
-        part_type: str = None,
-        brand: str = None,
+        search: str | None = None,
+        part_type: str | None = None,
+        brand: str | None = None,
         low_stock_only: bool = False,
         active_only: bool = True,
     ) -> Tuple[List[Part], int]:
@@ -69,7 +71,7 @@ class InventoryService:
         return db.session.get(Part, part_id)
 
     @staticmethod
-    def _assert_unique(field: str, value, exclude_id: int = None) -> None:
+    def _assert_unique(field: str, value, exclude_id: int | None = None) -> None:
         """Guard the unique columns before insert.
 
         Enforced here rather than in the API so the web forms, the API and the
@@ -198,10 +200,10 @@ class InventoryService:
         part_id: int,
         quantity_change: int,
         movement_type: str,
-        reference_type: str = None,
-        reference_id: int = None,
-        notes: str = None,
-        user_id: int = None,
+        reference_type: str | None = None,
+        reference_id: int | None = None,
+        notes: str | None = None,
+        user_id: int | None = None,
     ) -> Optional[Part]:
         """Adjust stock quantity and record the movement."""
         # Lock the row so two concurrent adjustments cannot both read the same
@@ -239,7 +241,7 @@ class InventoryService:
         return part
 
     @staticmethod
-    def get_low_stock_parts(threshold: int = None) -> List[Part]:
+    def get_low_stock_parts(threshold: int | None = None) -> List[Part]:
         """Get active parts at or below the low-stock threshold."""
         if threshold is None:
             from app.services.system import SettingsService
@@ -257,7 +259,7 @@ class InventoryService:
         )
 
     @staticmethod
-    def notify_low_stock(part_ids: List[int] = None) -> int:
+    def notify_low_stock(part_ids: List[int] | None = None) -> int:
         """Queue low-stock notifications for admins and managers.
 
         With ``part_ids`` the check is limited to those parts - used after a
@@ -350,7 +352,7 @@ class SupplierService:
 
     @staticmethod
     def get_suppliers(
-        page: int = 1, per_page: int = 20, search: str = None, active_only: bool = True
+        page: int = 1, per_page: int = 20, search: str | None = None, active_only: bool = True
     ) -> Tuple[List[Supplier], int]:
         query = Supplier.query
 
@@ -408,7 +410,7 @@ class SupplierService:
         return db.session.get(Supplier, supplier_id)
 
     @staticmethod
-    def _assert_unique_email(email: str, exclude_id: int = None) -> None:
+    def _assert_unique_email(email: str, exclude_id: int | None = None) -> None:
         if not email:
             return
         query = Supplier.query.filter(Supplier.email == email)
@@ -479,7 +481,7 @@ class SupplierService:
         return True
 
     @staticmethod
-    def link_part(supplier_id: int, part_id: int, data: dict = None) -> bool:
+    def link_part(supplier_id: int, part_id: int, data: dict | None = None) -> bool:
         """Link supplier to part"""
         supplier = db.session.get(Supplier, supplier_id)
         part = db.session.get(Part, part_id)

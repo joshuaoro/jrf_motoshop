@@ -108,7 +108,7 @@ class _Money(fields.Decimal):
 # ============================================================
 # USER / STAFF
 # ============================================================
-from app.models.user import VALID_ROLES  # noqa: E402  (domain constant)
+from app.models.user import VALID_ROLES
 
 
 class UserSchema(_BaseSchema):

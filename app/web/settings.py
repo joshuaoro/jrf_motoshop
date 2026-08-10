@@ -2,9 +2,10 @@
 Web settings blueprint
 """
 
-from flask import Blueprint, render_template, request, flash, redirect, url_for
-from flask_login import login_required, current_user
-from app.models import Settings, BackupLog
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+
+from app.models import BackupLog, Settings
 from app.services.system import SettingsService
 
 settings_web_bp = Blueprint("settings_web", __name__, template_folder="../../templates")

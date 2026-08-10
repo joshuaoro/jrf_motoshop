@@ -4,11 +4,17 @@ Parts API blueprint
 
 import logging
 
-from flask import Blueprint, request, jsonify
-from flask_login import login_required, current_user
-
+from flask import Blueprint, jsonify, request
+from flask_login import current_user, login_required
 from sqlalchemy import func
 
+from app.api.utils import (
+    error,
+    load_json,
+    pagination_args,
+    pagination_meta,
+    permission_required,
+)
 from app.core.extensions import db
 from app.models import Sale, SaleDetail, StockEntry
 from app.schemas import (
@@ -16,13 +22,6 @@ from app.schemas import (
     part_schema,
     parts_schema,
     stock_entries_schema,
-)
-from app.api.utils import (
-    error,
-    load_json,
-    pagination_args,
-    pagination_meta,
-    permission_required,
 )
 from app.services.inventory import InventoryService
 

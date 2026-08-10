@@ -2,10 +2,11 @@
 Database models - Sales, Customers, Transactions
 """
 
+import uuid
+from typing import ClassVar
+
 from app.core.extensions import db
 from app.core.time_utils import now_utc
-from typing import ClassVar
-import uuid
 
 
 class Customer(db.Model):

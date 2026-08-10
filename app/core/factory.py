@@ -11,12 +11,12 @@ from flask_login import current_user
 
 from app.core.config import config, describe_database, get_config, is_local_database
 from app.core.extensions import csrf, db, init_extensions
-from app.core.time_utils import now_utc, time_ago
 from app.core.security import (
     init_limiter,
     init_security_middleware,
     register_error_handlers,
 )
+from app.core.time_utils import now_utc, time_ago
 
 
 def create_app(config_name=None, overrides=None):

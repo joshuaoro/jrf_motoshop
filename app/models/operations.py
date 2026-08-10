@@ -2,9 +2,10 @@
 Database models - Purchase Orders, Expenses, Maintenance
 """
 
+import uuid
+
 from app.core.extensions import db
 from app.core.time_utils import now_utc
-import uuid
 
 
 class PurchaseOrder(db.Model):

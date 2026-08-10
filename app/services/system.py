@@ -2,10 +2,11 @@
 Settings and Notification services
 """
 
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
+
 from app.core.extensions import db
 from app.core.time_utils import now_utc
-from app.models import Settings, Notification, User
+from app.models import Notification, Settings, User
 
 
 class SettingsService:
@@ -221,7 +222,7 @@ class SettingsService:
 
     @staticmethod
     def get_all_settings(
-        category: str = None,
+        category: str | None = None,
         public_only: bool = False,
         include_sensitive: bool = False,
     ) -> Dict[str, Dict]:
@@ -269,7 +270,7 @@ class SettingsService:
         return default if value is None else value
 
     @staticmethod
-    def get_settings_dict(category: str = None, public_only: bool = False) -> Dict:
+    def get_settings_dict(category: str | None = None, public_only: bool = False) -> Dict:
         """Get settings as flat dict with typed values"""
         settings = SettingsService.get_all_settings(category, public_only)
         result = {}
@@ -333,7 +334,7 @@ class SettingsService:
                         }
                     )
                 except Exception as e:
-                    errors.append(f"Error updating {category}.{key}: {str(e)}")
+                    errors.append(f"Error updating {category}.{key}: {e!s}")
 
         if updated:
             db.session.commit()
@@ -344,7 +345,7 @@ class SettingsService:
         return {"updated": updated, "errors": errors}
 
     @staticmethod
-    def reset_to_defaults(category: str = None) -> int:
+    def reset_to_defaults(category: str | None = None) -> int:
         """Reset settings to defaults"""
         count = 0
         for cat, settings in SettingsService.DEFAULT_SETTINGS.items():
@@ -370,8 +371,8 @@ class NotificationService:
         message: str,
         type: str = "info",
         category: str = "system",
-        action_url: str = None,
-        action_text: str = None,
+        action_url: str | None = None,
+        action_text: str | None = None,
         priority: int = 0,
     ) -> Notification:
         """Create a single notification"""
@@ -396,8 +397,8 @@ class NotificationService:
         message: str,
         type: str = "info",
         category: str = "system",
-        action_url: str = None,
-        action_text: str = None,
+        action_url: str | None = None,
+        action_text: str | None = None,
         priority: int = 0,
     ) -> List[Notification]:
         """Create notifications for all users with a role"""
@@ -425,8 +426,8 @@ class NotificationService:
         message: str,
         type: str = "info",
         category: str = "system",
-        action_url: str = None,
-        action_text: str = None,
+        action_url: str | None = None,
+        action_text: str | None = None,
     ) -> List[Notification]:
         """Create notifications for all active users"""
         users = User.query.filter_by(is_active=True).all()
@@ -452,7 +453,7 @@ class NotificationService:
         page: int = 1,
         per_page: int = 20,
         unread_only: bool = False,
-        category: str = None,
+        category: str | None = None,
     ):
         """Get paginated notifications for user"""
         query = Notification.query.filter_by(user_id=user_id)
