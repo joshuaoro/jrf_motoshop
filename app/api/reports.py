@@ -10,6 +10,7 @@ from sqlalchemy import func
 
 from app.api.utils import error, parse_date_arg, permission_required
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import Customer, Expense, Part, Sale, SaleDetail, User
 from app.services.dashboard import DashboardService
 from app.services.system import SettingsService
@@ -21,7 +22,7 @@ DEFAULT_WINDOW_DAYS = 30
 
 def _period():
     """Resolve the reporting window, defaulting to the last 30 days."""
-    end_date = parse_date_arg("end_date", end_of_day=True) or datetime.utcnow()
+    end_date = parse_date_arg("end_date", end_of_day=True) or now_utc()
     start_date = parse_date_arg("start_date")
     if start_date is None:
         start_date = datetime.combine(

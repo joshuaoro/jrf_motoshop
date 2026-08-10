@@ -5,7 +5,7 @@ Database models - User/Staff
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.core.extensions import db
-from datetime import datetime
+from app.core.time_utils import now_utc
 
 #: The roles a staff account may hold, most privileged first. Imported by the
 #: schemas and the user service so validation, the API and the UI stay in step.
@@ -25,8 +25,8 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     last_login = db.Column(db.DateTime)
 
     # Relationships

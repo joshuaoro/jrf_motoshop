@@ -15,6 +15,7 @@ from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import AuditLog, BackupLog, Notification, SystemLog
 from app.services.inventory import InventoryService
 from app.services.system import SettingsService
@@ -40,7 +41,7 @@ def check_low_stock():
 @shared_task
 def cleanup_old_logs():
     """Prune old system logs, audit logs and read notifications."""
-    now = datetime.utcnow()
+    now = now_utc()
 
     try:
         deleted_logs = SystemLog.query.filter(SystemLog.log_date < now - timedelta(days=90)).delete(
@@ -95,7 +96,7 @@ def auto_backup():
         retention_days = 30
 
     backup_dir.mkdir(parents=True, exist_ok=True)
-    filepath = backup_dir / f"jrf_backup_{datetime.utcnow():%Y%m%d_%H%M%S}.sql"
+    filepath = backup_dir / f"jrf_backup_{now_utc():%Y%m%d_%H%M%S}.sql"
 
     backup_log = BackupLog(
         backup_type="scheduled",
@@ -126,7 +127,7 @@ def auto_backup():
         file_size = filepath.stat().st_size
         backup_log.file_size = file_size
         backup_log.status = "success"
-        backup_log.completed_at = datetime.utcnow()
+        backup_log.completed_at = now_utc()
         backup_log.tables_included = "all"
         db.session.commit()
 
@@ -134,7 +135,7 @@ def auto_backup():
         db.session.rollback()
         backup_log.status = "failed"
         backup_log.error_message = str(exc)[:500]
-        backup_log.completed_at = datetime.utcnow()
+        backup_log.completed_at = now_utc()
         db.session.commit()
 
         filepath.unlink(missing_ok=True)
@@ -161,7 +162,7 @@ def _prune_old_backups(backup_dir: Path, retention_days: int) -> int:
     if retention_days <= 0:
         return 0
 
-    cutoff = datetime.utcnow() - timedelta(days=retention_days)
+    cutoff = now_utc() - timedelta(days=retention_days)
     removed = 0
 
     for path in backup_dir.glob("jrf_backup_*.sql"):

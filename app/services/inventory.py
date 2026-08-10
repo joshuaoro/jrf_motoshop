@@ -8,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 from app.core.extensions import db
 from app.models import Part, Supplier, StockEntry, supplier_part
-from datetime import datetime
+from app.core.time_utils import now_utc
 import uuid
 
 
@@ -91,9 +91,7 @@ class InventoryService:
 
         # Generate SKU if not provided
         if not data.get("sku"):
-            data["sku"] = (
-                f"PRT-{datetime.utcnow().strftime('%Y%m%d')}-{str(uuid.uuid4())[:6].upper()}"
-            )
+            data["sku"] = f"PRT-{now_utc().strftime('%Y%m%d')}-{str(uuid.uuid4())[:6].upper()}"
 
         InventoryService._assert_unique("sku", data.get("sku"))
         InventoryService._assert_unique("barcode", data.get("barcode"))

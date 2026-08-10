@@ -68,6 +68,62 @@ def test_every_page_loads_without_js_errors(logged_in, seeded, path, heading):
     assert_clean(logged_in)
 
 
+@pytest.mark.parametrize(
+    "path,heading",
+    [
+        ("/dashboard", "Dashboard"),
+        ("/inventory/", "Inventory"),
+        ("/sales/", "Point of Sale"),
+        ("/customers/", "Customer"),
+        ("/suppliers/", "Supplier"),
+        ("/purchase-orders/", "Purchase Orders"),
+        ("/expenses/", "Expense Register"),
+        ("/maintenance/", "Equipment Maintenance"),
+        ("/reports/", "Report"),
+        ("/settings/", "Settings"),
+        ("/staff/", "Staff"),
+        ("/notifications", "Notification"),
+    ],
+)
+def test_every_page_works_under_the_production_csp(
+    strict_logged_in, strict_csp_seeded, path, heading
+):
+    """Every page must still be interactive under ProductionConfig's real CSP.
+
+    ProductionConfig drops 'unsafe-inline' from script-src, and every
+    template used to rely on inline <script> blocks and inline
+    onclick=/onchange=/oninput= handlers - both are blocked outright by that
+    policy, which would have made the shipped UI dead on click. This is the
+    one place that policy is ever actually exercised: `strict_logged_in`
+    builds the app with ProductionConfig's CONTENT_SECURITY_POLICY, and
+    `strict_page` (unlike the ordinary `page` fixture) treats a CSP
+    violation in the console as a hard failure instead of ignoring it.
+    """
+    strict_logged_in.goto(f"{strict_csp_seeded['url']}{path}")
+    strict_logged_in.wait_for_load_state("networkidle")
+
+    assert strict_logged_in.locator(f"text={heading}").first.is_visible()
+    assert_clean(strict_logged_in)
+
+
+def test_a_button_click_works_under_the_production_csp(strict_logged_in, strict_csp_seeded):
+    """A concrete interaction, not just a page load: opening a modal.
+
+    A page can finish loading (network idle, heading visible) while every
+    onclick= handler on it is silently inert under CSP - `networkidle` says
+    nothing about whether JS event handlers actually attached. This clicks
+    a real button and asserts the resulting modal appears, so a regression
+    back to inline handlers fails here even if it slipped past the
+    page-load check above.
+    """
+    strict_logged_in.goto(f"{strict_csp_seeded['url']}/inventory/")
+    strict_logged_in.wait_for_load_state("networkidle")
+
+    strict_logged_in.click("text=Add Part")
+    strict_logged_in.wait_for_selector("#partModal:not(.hidden)", timeout=5_000)
+    assert_clean(strict_logged_in)
+
+
 class TestPointOfSale:
     """The most important flow in the app, and the one that was broken."""
 
@@ -162,7 +218,7 @@ class TestInventory:
         logged_in.fill("#partPrice", "999.50")
         logged_in.fill("#partCost", "610.25")
         logged_in.fill("#partStock", "7")
-        logged_in.click("#partModal button[onclick='savePart()']")
+        logged_in.click("#partModal .js-save-part")
 
         logged_in.wait_for_load_state("networkidle")
         logged_in.wait_for_timeout(500)

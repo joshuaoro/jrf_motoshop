@@ -13,8 +13,7 @@
             <h1 class="text-2xl font-bold text-gray-800">Equipment Maintenance</h1>
             <p class="text-sm text-gray-500">Service history and upcoming work for shop equipment.</p>
         </div>
-        <button type="button" onclick="openLogModal()"
-                class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+        <button type="button" class="js-open-log-modal bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
             <i class="fas fa-plus mr-2"></i>Log Maintenance
         </button>
     </div>
@@ -115,12 +114,12 @@
                         </td>
                         <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">{{ log.cost|peso }}</td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
-                            <button type="button" class="text-blue-600 hover:text-blue-800 mr-3"
-                                    data-log='{{ log|tojson }}' onclick="editLog(this)" title="Edit">
+                            <button type="button" class="js-edit-log text-blue-600 hover:text-blue-800 mr-3"
+                                    data-log='{{ log|tojson }}' title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button type="button" class="text-red-600 hover:text-red-800"
-                                    data-log-id="{{ log.id }}" onclick="askDelete(this)" title="Delete">
+                            <button type="button" class="js-ask-delete-log text-red-600 hover:text-red-800"
+                                    data-log-id="{{ log.id }}" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </td>
@@ -131,8 +130,7 @@
                             <i class="fas fa-screwdriver-wrench text-5xl text-gray-300 mb-3"></i>
                             <p class="text-gray-600 font-medium">No maintenance records</p>
                             <p class="text-gray-400 text-sm mb-4">Log servicing so upcoming work does not get missed.</p>
-                            <button type="button" onclick="openLogModal()"
-                                    class="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700">
+                            <button type="button" class="js-open-log-modal bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700">
                                 <i class="fas fa-plus mr-2"></i>Log the first record
                             </button>
                         </td>
@@ -165,7 +163,7 @@
     <div class="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-semibold" id="logModalTitle">Log Maintenance</h3>
-            <button type="button" onclick="closeLogModal()" class="text-gray-400 hover:text-gray-600">
+            <button type="button" class="js-close-log-modal text-gray-400 hover:text-gray-600">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -245,7 +243,7 @@
             </div>
 
             <div class="flex justify-end space-x-3 pt-2">
-                <button type="button" onclick="closeLogModal()" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
+                <button type="button" class="js-close-log-modal px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
                 <button type="submit" id="logSubmit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save Record</button>
             </div>
         </form>
@@ -259,134 +257,13 @@
         <h3 class="text-lg font-semibold mb-2">Delete this record?</h3>
         <p class="text-gray-600 mb-6">This cannot be undone.</p>
         <div class="flex justify-center space-x-3">
-            <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
-            <button type="button" onclick="confirmDelete()" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Delete</button>
+            <button type="button" class="js-close-delete-modal px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
+            <button type="button" class="js-confirm-delete px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Delete</button>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    let deleteTargetId = null;
-
-
-    function showError(message) {
-        const box = document.getElementById('logError');
-        box.textContent = message;
-        box.classList.remove('hidden');
-    }
-
-    function openLogModal() {
-        document.getElementById('logError').classList.add('hidden');
-        document.getElementById('logModalTitle').textContent = 'Log Maintenance';
-        document.getElementById('logForm').reset();
-        document.getElementById('logId').value = '';
-        document.getElementById('logModal').classList.remove('hidden');
-    }
-
-    function editLog(button) {
-        document.getElementById('logError').classList.add('hidden');
-        const log = JSON.parse(button.getAttribute('data-log'));
-
-        document.getElementById('logModalTitle').textContent = 'Edit Maintenance Record';
-        document.getElementById('logId').value = log.id;
-        document.getElementById('logEquipment').value = log.equipment_name || '';
-        document.getElementById('logSerial').value = log.equipment_serial || '';
-        document.getElementById('logType').value = log.maintenance_type;
-        document.getElementById('logCost').value = log.cost;
-        document.getElementById('logDescription').value = log.description || '';
-        document.getElementById('logDate').value =
-            log.maintenance_date ? log.maintenance_date.slice(0, 10) : '';
-        document.getElementById('logNext').value =
-            log.next_maintenance ? log.next_maintenance.slice(0, 10) : '';
-        document.getElementById('logPerformedBy').value = log.performed_by || '';
-        document.getElementById('logVendor').value = log.vendor || '';
-        document.getElementById('logPart').value = log.part_id || '';
-        document.getElementById('logNotes').value = log.notes || '';
-        document.getElementById('logModal').classList.remove('hidden');
-    }
-
-    function closeLogModal() {
-        document.getElementById('logModal').classList.add('hidden');
-    }
-
-    function askDelete(button) {
-        deleteTargetId = button.getAttribute('data-log-id');
-        document.getElementById('deleteModal').classList.remove('hidden');
-    }
-
-    function closeDeleteModal() {
-        document.getElementById('deleteModal').classList.add('hidden');
-        deleteTargetId = null;
-    }
-
-    async function confirmDelete() {
-        if (!deleteTargetId) return;
-        try {
-            const response = await fetch(`/api/maintenance/${deleteTargetId}`, {
-                method: 'DELETE',
-                credentials: 'same-origin',
-            });
-            if (!response.ok) {
-                const body = await response.json().catch(() => null);
-                alert(JRF.errorMessage(body, 'Could not delete the record.'));
-                return;
-            }
-            location.reload();
-        } catch (error) {
-            console.error(error);
-            alert('Could not reach the server.');
-        }
-    }
-
-    document.getElementById('logForm').addEventListener('submit', async function (event) {
-        event.preventDefault();
-        document.getElementById('logError').classList.add('hidden');
-
-        const logId = document.getElementById('logId').value;
-        const partId = document.getElementById('logPart').value;
-        const serviced = document.getElementById('logDate').value;
-        const next = document.getElementById('logNext').value;
-
-        const payload = {
-            equipment_name: document.getElementById('logEquipment').value,
-            equipment_serial: document.getElementById('logSerial').value || null,
-            maintenance_type: document.getElementById('logType').value,
-            description: document.getElementById('logDescription').value,
-            cost: document.getElementById('logCost').value || '0',
-            performed_by: document.getElementById('logPerformedBy').value || null,
-            vendor: document.getElementById('logVendor').value || null,
-            notes: document.getElementById('logNotes').value || null,
-            part_id: partId ? parseInt(partId, 10) : null,
-        };
-        if (serviced) payload.maintenance_date = `${serviced}T00:00:00`;
-        if (next) payload.next_maintenance = `${next}T00:00:00`;
-
-        const submit = document.getElementById('logSubmit');
-        submit.disabled = true;
-        try {
-            const response = await fetch(
-                logId ? `/api/maintenance/${logId}` : '/api/maintenance',
-                {
-                    method: logId ? 'PUT' : 'POST',
-                    credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                }
-            );
-            if (!response.ok) {
-                const body = await response.json().catch(() => null);
-                showError(JRF.errorMessage(body, 'Could not save the record.'));
-                return;
-            }
-            location.reload();
-        } catch (error) {
-            console.error(error);
-            showError('Could not reach the server.');
-        } finally {
-            submit.disabled = false;
-        }
-    });
-</script>
+<script src="{{ url_for('static', filename='js/pages/maintenance.js') }}"></script>
 {% endblock %}

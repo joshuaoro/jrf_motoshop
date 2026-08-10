@@ -34,9 +34,9 @@
                 {% if next_statuses %}
                 <div class="flex gap-2">
                     {% for status in next_statuses %}
-                    <button type="button" onclick="setStatus('{{ status }}')"
-                            class="px-3 py-1.5 text-sm border rounded-md hover:bg-gray-50 capitalize
-                                   {% if status == 'cancelled' %}text-red-600 border-red-200 hover:bg-red-50{% else %}text-gray-700{% endif %}">
+                    <button type="button" class="js-set-status px-3 py-1.5 text-sm border rounded-md hover:bg-gray-50 capitalize
+                                   {% if status == 'cancelled' %}text-red-600 border-red-200 hover:bg-red-50{% else %}text-gray-700{% endif %}"
+                            data-status="{{ status }}">
                         Mark {{ status }}
                     </button>
                     {% endfor %}
@@ -75,7 +75,7 @@
             <div class="px-4 py-3 border-b bg-gray-50 flex justify-between items-center">
                 <h2 class="font-semibold text-gray-800">Line items</h2>
                 {% if can_receive %}
-                <button type="button" onclick="receiveAll()" class="text-sm text-blue-600 hover:text-blue-800">
+                <button type="button" class="js-receive-all text-sm text-blue-600 hover:text-blue-800">
                     Fill all outstanding
                 </button>
                 {% endif %}
@@ -158,91 +158,12 @@
         <p class="text-sm text-gray-600 whitespace-pre-line">{{ order.notes }}</p>
     </div>
     {% endif %}
+
+    <!-- Data for purchase_order_detail.js - external scripts can't contain Jinja. -->
+    <div id="purchase-order-data" class="hidden" data-order-id="{{ order.id }}"></div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    const ORDER_ID = {{ order.id }};
-
-
-    function showError(message) {
-        const box = document.getElementById('pageError');
-        box.textContent = message;
-        box.classList.remove('hidden');
-        document.getElementById('pageOk').classList.add('hidden');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function receiveAll() {
-        document.querySelectorAll('.receive-qty').forEach(input => {
-            input.value = input.getAttribute('data-outstanding');
-        });
-    }
-
-    async function setStatus(status) {
-        try {
-            const response = await fetch(`/api/purchase-orders/${ORDER_ID}/status`, {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: status }),
-            });
-            if (!response.ok) {
-                const body = await response.json().catch(() => null);
-                showError(JRF.errorMessage(body, 'Could not change the status.'));
-                return;
-            }
-            location.reload();
-        } catch (error) {
-            console.error(error);
-            showError('Could not reach the server.');
-        }
-    }
-
-    const receiveForm = document.getElementById('receiveForm');
-    if (receiveForm) {
-        receiveForm.addEventListener('submit', async function (event) {
-            event.preventDefault();
-
-            const items = [];
-            document.querySelectorAll('.receive-qty').forEach(input => {
-                const quantity = parseInt(input.value, 10) || 0;
-                if (quantity > 0) {
-                    items.push({
-                        part_id: parseInt(input.getAttribute('data-part-id'), 10),
-                        quantity: quantity,
-                    });
-                }
-            });
-
-            if (items.length === 0) {
-                showError('Enter a quantity against at least one line before receiving.');
-                return;
-            }
-
-            const submit = document.getElementById('receiveSubmit');
-            submit.disabled = true;
-            try {
-                const response = await fetch(`/api/purchase-orders/${ORDER_ID}/receive`, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items: items }),
-                });
-                if (!response.ok) {
-                    const body = await response.json().catch(() => null);
-                    showError(JRF.errorMessage(body, 'Could not receive the items.'));
-                    return;
-                }
-                location.reload();
-            } catch (error) {
-                console.error(error);
-                showError('Could not reach the server.');
-            } finally {
-                submit.disabled = false;
-            }
-        });
-    }
-</script>
+<script src="{{ url_for('static', filename='js/pages/purchase_order_detail.js') }}"></script>
 {% endblock %}

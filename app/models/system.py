@@ -3,7 +3,7 @@ Database models - Settings, Notifications, Audit & System Logs
 """
 
 from app.core.extensions import db
-from datetime import datetime
+from app.core.time_utils import now_utc, time_ago
 import json
 
 
@@ -25,7 +25,7 @@ class Settings(db.Model):
     is_public = db.Column(db.Boolean, default=False)  # Whether safe to expose to frontend
     is_required = db.Column(db.Boolean, default=False)
     validation_regex = db.Column(db.String(200))  # Optional regex validation
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
     updated_by = db.Column(db.Integer, db.ForeignKey("staff.id"))
 
     # Unique constraint on category + key
@@ -129,7 +129,7 @@ class Notification(db.Model):
         db.String(50), default="system", index=True
     )  # system, inventory, sales, staff, backup
     is_read = db.Column(db.Boolean, default=False, nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False, index=True)
     read_at = db.Column(db.DateTime)
     action_url = db.Column(db.String(500))
     action_text = db.Column(db.String(100))
@@ -138,7 +138,7 @@ class Notification(db.Model):
     def mark_read(self):
         if not self.is_read:
             self.is_read = True
-            self.read_at = datetime.utcnow()
+            self.read_at = now_utc()
 
     def to_dict(self) -> dict:
         return {
@@ -150,6 +150,7 @@ class Notification(db.Model):
             "is_read": self.is_read,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "read_at": self.read_at.isoformat() if self.read_at else None,
+            "time_ago": time_ago(self.created_at),
             "action_url": self.action_url,
             "action_text": self.action_text,
             "priority": self.priority,
@@ -165,7 +166,7 @@ class AuditLog(db.Model):
     __tablename__ = "audit_logs"
 
     id = db.Column(db.Integer, primary_key=True)
-    action_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    action_date = db.Column(db.DateTime, default=now_utc, nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("staff.id", ondelete="SET NULL"), index=True)
     action_type = db.Column(
         db.String(20), nullable=False, index=True
@@ -220,7 +221,7 @@ class SystemLog(db.Model):
     __tablename__ = "system_logs"
 
     id = db.Column(db.Integer, primary_key=True)
-    log_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    log_date = db.Column(db.DateTime, default=now_utc, nullable=False, index=True)
     log_level = db.Column(
         db.String(20), default="info", index=True
     )  # debug, info, warning, error, critical
@@ -269,7 +270,7 @@ class BackupLog(db.Model):
     __tablename__ = "backup_logs"
 
     id = db.Column(db.Integer, primary_key=True)
-    backup_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    backup_date = db.Column(db.DateTime, default=now_utc, nullable=False, index=True)
     backup_type = db.Column(db.String(20), default="manual", index=True)  # manual, scheduled
     backup_location = db.Column(db.String(500))
     file_size = db.Column(db.BigInteger)

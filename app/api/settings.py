@@ -4,11 +4,12 @@ Settings API blueprint
 
 import json
 import logging
-from datetime import datetime
 from io import BytesIO
 
 from flask import Blueprint, jsonify, request, send_file
 from flask_login import current_user, login_required
+
+from app.core.time_utils import now_utc
 
 from app.api.utils import admin_required, error, permission_required
 from app.services.system import SettingsService
@@ -80,7 +81,7 @@ def reset_settings():
 def export_settings():
     """Export all settings as JSON (admin only - includes secrets)."""
     export_data = {
-        "exported_at": datetime.utcnow().isoformat() + "Z",
+        "exported_at": now_utc().isoformat() + "Z",
         "exported_by": current_user.name,
         "settings": SettingsService.get_all_settings(include_sensitive=True),
     }
@@ -93,7 +94,7 @@ def export_settings():
         buffer,
         mimetype="application/json",
         as_attachment=True,
-        download_name=f"settings_export_{datetime.utcnow():%Y%m%d_%H%M%S}.json",
+        download_name=f"settings_export_{now_utc():%Y%m%d_%H%M%S}.json",
     )
 
 

@@ -14,6 +14,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import Expense, Part, PurchaseOrder, Supplier
 from app.schemas import (
     EXPENSE_CATEGORIES,
@@ -148,7 +149,7 @@ def expenses_index():
         .all()
     )
 
-    month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start = now_utc().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     month_total = (
         db.session.query(func.coalesce(func.sum(Expense.amount), 0))
         .filter(Expense.expense_date >= month_start)

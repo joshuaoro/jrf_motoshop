@@ -120,6 +120,7 @@ def init_security_middleware(app):
 try:
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
+    from flask_limiter.wrappers import LimitGroup
 
     limiter = Limiter(
         key_func=get_remote_address,
@@ -133,8 +134,17 @@ try:
         limiter.storage_uri = storage_uri
         limiter.enabled = app.config.get("RATELIMIT_ENABLED", True)
 
-        # Apply the API-wide default to every /api/ route. Per-view limits
-        # (e.g. the tighter one on login) still take precedence.
+        # Enforce the configured ceiling on every route that does not carry its
+        # own limit. RATELIMIT_DEFAULT was resolved in config but never wired
+        # to anything - default_limits is exactly the slot it was meant for, and
+        # the per-view limits (notably the tighter one on login) override it.
+        default_limits = app.config.get("RATELIMIT_DEFAULT")
+        limiter.default_limits = (
+            [LimitGroup(limit_provider=default_limits, key_function=get_remote_address)]
+            if default_limits
+            else []
+        )
+
         limiter.init_app(app)
         app.extensions["limiter"] = limiter
 

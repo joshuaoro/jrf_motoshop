@@ -15,6 +15,7 @@ from typing import List
 from sqlalchemy import func
 
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import Customer, Part, Sale, Supplier, User
 from app.services.system import SettingsService
 
@@ -34,7 +35,7 @@ class DashboardService:
     def get_stats() -> dict:
         """Headline counts and today's revenue."""
         threshold = DashboardService.low_stock_threshold()
-        now = datetime.utcnow()
+        now = now_utc()
 
         today_revenue = (
             db.session.query(func.coalesce(func.sum(Sale.total_amount), 0))
@@ -114,7 +115,7 @@ class DashboardService:
     def get_sales_chart(days: int = 7) -> List[dict]:
         """Daily sale count and revenue for the last ``days`` days."""
         days = max(1, min(days, 365))
-        start_date = datetime.utcnow() - timedelta(days=days)
+        start_date = now_utc() - timedelta(days=days)
 
         results = (
             db.session.query(

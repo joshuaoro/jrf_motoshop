@@ -3,7 +3,7 @@ Database models - Sales, Customers, Transactions
 """
 
 from app.core.extensions import db
-from datetime import datetime
+from app.core.time_utils import now_utc
 from typing import ClassVar
 import uuid
 
@@ -25,8 +25,8 @@ class Customer(db.Model):
     balance = db.Column(db.Numeric(10, 2), default=0)  # Running balance
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
     # Relationships
     sales = db.relationship("Sale", backref="customer", lazy="dynamic")
@@ -90,7 +90,7 @@ class Sale(db.Model):
     __tablename__ = "sales"
 
     id = db.Column(db.Integer, primary_key=True)
-    sale_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    sale_date = db.Column(db.DateTime, default=now_utc, nullable=False, index=True)
     total_amount = db.Column(db.Numeric(10, 2), nullable=False)
     tax_amount = db.Column(db.Numeric(10, 2), default=0)
     discount_amount = db.Column(db.Numeric(10, 2), default=0)
@@ -104,8 +104,8 @@ class Sale(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), index=True)
     receipt_number = db.Column(db.String(50), unique=True, nullable=False, index=True)
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
     # Relationships
     details = db.relationship(
@@ -123,7 +123,7 @@ class Sale(db.Model):
 
     @staticmethod
     def generate_receipt_number() -> str:
-        return f"RCP-{datetime.utcnow().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+        return f"RCP-{now_utc().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
 
     @property
     def subtotal(self) -> float:
@@ -231,11 +231,11 @@ class Payment(db.Model):
     )
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     payment_method = db.Column(db.String(20), nullable=False)
-    payment_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    payment_date = db.Column(db.DateTime, default=now_utc, nullable=False)
     reference_number = db.Column(db.String(100))
     notes = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey("staff.id"))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
 
     def to_dict(self) -> dict:
         return {

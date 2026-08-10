@@ -13,6 +13,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import Customer, Part, Payment, Sale, SaleDetail, StockEntry
 
 CENTS = Decimal("0.01")
@@ -182,9 +183,12 @@ class SalesService:
         The whole thing is one transaction: if any line fails validation the
         sale is rolled back entirely, so stock is never partially deducted.
 
-        Monetary totals are computed here from the line items and the part's
-        catalogue price - never taken from the request - so a client cannot
-        choose what it pays.
+        Each line falls back to the part's catalogue price when the client
+        omits ``unit_price``, but a POS operator *may* supply their own unit
+        price and discount/tax percentages (SaleLineSchema accepts them) for a
+        negotiated sale. What the client can never set is the sale total itself
+        - total_amount, tax_amount and discount_amount are derived here from the
+        line items, never taken from the request.
         """
         details_data = data.pop("details", None) or []
         if not details_data:
@@ -198,7 +202,7 @@ class SalesService:
             sale = Sale(
                 staff_id=staff_id,
                 receipt_number=Sale.generate_receipt_number(),
-                sale_date=data.get("sale_date") or datetime.utcnow(),
+                sale_date=data.get("sale_date") or now_utc(),
                 payment_method=data["payment_method"],
                 payment_status=data.get("payment_status", "paid"),
                 customer_id=customer_id,
@@ -407,9 +411,7 @@ class SalesService:
                 )
 
             sale.payment_status = "refunded"
-            voided_note = (
-                f"[{datetime.utcnow():%Y-%m-%d %H:%M} UTC] " f"Voided by user {user_id}: {reason}"
-            )
+            voided_note = f"[{now_utc():%Y-%m-%d %H:%M} UTC] " f"Voided by user {user_id}: {reason}"
             sale.notes = f"{sale.notes}\n{voided_note}" if sale.notes else voided_note
 
             db.session.commit()

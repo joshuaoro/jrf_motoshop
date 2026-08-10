@@ -62,17 +62,17 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">System Settings</h1>
         <div class="flex space-x-3">
-            <button onclick="exportSettings()" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
+            <button class="js-export-settings bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
                 <i class="fas fa-download mr-2"></i>Export
             </button>
             <label for="importFile" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors cursor-pointer">
                 <i class="fas fa-upload mr-2"></i>Import
             </label>
-            <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importSettings(event)">
-            <button onclick="resetSettings()" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
+            <input type="file" id="importFile" accept=".json" style="display: none;">
+            <button class="js-reset-settings bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
                 <i class="fas fa-undo mr-2"></i>Reset to Defaults
             </button>
-            <button onclick="saveAllSettings()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+            <button class="js-save-all-settings bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
                 <i class="fas fa-save mr-2"></i>Save All Settings
             </button>
         </div>
@@ -83,22 +83,22 @@
         <div class="lg:col-span-1">
             <div class="bg-white rounded-lg shadow-md p-4">
                 <nav class="space-y-2">
-                    <button onclick="showSection('general')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors bg-blue-50 text-blue-600">
+                    <button class="settings-nav-btn js-show-section w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors bg-blue-50 text-blue-600" data-section="general">
                         <i class="fas fa-cog mr-3"></i>General Settings
                     </button>
-                    <button onclick="showSection('inventory')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors">
+                    <button class="settings-nav-btn js-show-section w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors" data-section="inventory">
                         <i class="fas fa-boxes mr-3"></i>Inventory Settings
                     </button>
-                    <button onclick="showSection('sales')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors">
+                    <button class="settings-nav-btn js-show-section w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors" data-section="sales">
                         <i class="fas fa-shopping-cart mr-3"></i>Sales Settings
                     </button>
-                    <button onclick="showSection('notifications')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors">
+                    <button class="settings-nav-btn js-show-section w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors" data-section="notifications">
                         <i class="fas fa-bell mr-3"></i>Notifications
                     </button>
-                    <button onclick="showSection('backup')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors">
+                    <button class="settings-nav-btn js-show-section w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors" data-section="backup">
                         <i class="fas fa-database mr-3"></i>Backup & Restore
                     </button>
-                    <button onclick="showSection('security')" class="settings-nav-btn w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors">
+                    <button class="settings-nav-btn js-show-section w-full text-left px-4 py-2 rounded-md hover:bg-gray-100 transition-colors" data-section="security">
                         <i class="fas fa-shield-alt mr-3"></i>Security
                     </button>
                 </nav>
@@ -116,34 +116,34 @@
                         <label for="general-store_name" class="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
                         <input type="text" id="general-store_name" value="{{ settings.get('general', {}).get('store_name', {}).get('value', 'JRF Motorcycle Parts & Accessories') }}" 
                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               onchange="markSectionAsChanged('general')">
+                               data-mark-section="general">
                     </div>
                     
                     <div>
                         <label for="general-store_address" class="block text-sm font-medium text-gray-700 mb-1">Store Address</label>
                         <textarea id="general-store_address" rows="3" 
                                   class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  onchange="markSectionAsChanged('general')">{{ settings.get('general', {}).get('store_address', {}).get('value', '123 Main Street, Manila, Philippines') }}</textarea>
+                                  data-mark-section="general">{{ settings.get('general', {}).get('store_address', {}).get('value', '123 Main Street, Manila, Philippines') }}</textarea>
                     </div>
                     
                     <div>
                         <label for="general-contact_number" class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
                         <input type="tel" id="general-contact_number" value="{{ settings.get('general', {}).get('contact_number', {}).get('value', '+63 2 1234 5678') }}" 
                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               onchange="markSectionAsChanged('general')">
+                               data-mark-section="general">
                     </div>
                     
                     <div>
                         <label for="general-email_address" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                         <input type="email" id="general-email_address" value="{{ settings.get('general', {}).get('email_address', {}).get('value', 'info@jrfmotorparts.com') }}" 
                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               onchange="markSectionAsChanged('general')">
+                               data-mark-section="general">
                     </div>
                     
                     <div>
                         <label for="general-currency" class="block text-sm font-medium text-gray-700 mb-1">Currency</label>
                         <select id="general-currency" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                onchange="markSectionAsChanged('general')">
+                                data-mark-section="general">
                             <option value="PHP" {% if settings.get('general', {}).get('currency', {}).get('value') == 'PHP' %}selected{% endif %}>Philippine Peso (₱)</option>
                             <option value="USD" {% if settings.get('general', {}).get('currency', {}).get('value') == 'USD' %}selected{% endif %}>US Dollar ($)</option>
                             <option value="EUR" {% if settings.get('general', {}).get('currency', {}).get('value') == 'EUR' %}selected{% endif %}>Euro (€)</option>
@@ -153,7 +153,7 @@
                     <div>
                         <label for="general-timezone" class="block text-sm font-medium text-gray-700 mb-1">Time Zone</label>
                         <select id="general-timezone" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                onchange="markSectionAsChanged('general')">
+                                data-mark-section="general">
                             <option value="Asia/Manila" {% if settings.get('general', {}).get('timezone', {}).get('value') == 'Asia/Manila' %}selected{% endif %}>Asia/Manila (GMT+8)</option>
                             <option value="UTC" {% if settings.get('general', {}).get('timezone', {}).get('value') == 'UTC' %}selected{% endif %}>UTC</option>
                             <option value="America/New_York" {% if settings.get('general', {}).get('timezone', {}).get('value') == 'America/New_York' %}selected{% endif %}>America/New_York</option>
@@ -175,7 +175,7 @@
                         <label class="toggle-switch">
                             <input type="checkbox" id="inventory-low_stock_alert" 
                                    {% if settings.get('inventory', {}).get('low_stock_alert', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('inventory')">
+                                   data-mark-section="inventory">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -185,7 +185,7 @@
                         <input type="number" id="inventory-low_stock_threshold" 
                                value="{{ settings.get('inventory', {}).get('low_stock_threshold', {}).get('value', '5') }}" min="1" 
                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               onchange="markSectionAsChanged('inventory')">
+                               data-mark-section="inventory">
                     </div>
                     
                     <div class="flex items-center justify-between">
@@ -196,7 +196,7 @@
                         <label class="toggle-switch">
                             <input type="checkbox" id="inventory-auto_generate_sku" 
                                    {% if settings.get('inventory', {}).get('auto_generate_sku', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('inventory')">
+                                   data-mark-section="inventory">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -209,7 +209,7 @@
                         <label class="toggle-switch">
                             <input type="checkbox" id="inventory-track_serial_numbers" 
                                    {% if settings.get('inventory', {}).get('track_serial_numbers', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('inventory')">
+                                   data-mark-section="inventory">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -225,13 +225,13 @@
                         <label for="sales-tax_rate" class="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
                         <input type="number" id="sales-tax_rate" value="{{ settings.get('sales', {}).get('tax_rate', {}).get('value', '12') }}" step="0.1" min="0" max="100"
                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               onchange="markSectionAsChanged('sales')">
+                               data-mark-section="sales">
                     </div>
                     
                     <div>
                         <label for="sales-default_payment_method" class="block text-sm font-medium text-gray-700 mb-1">Default Payment Method</label>
                         <select id="sales-default_payment_method" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                onchange="markSectionAsChanged('sales')">
+                                data-mark-section="sales">
                             <option value="cash" {% if settings.get('sales', {}).get('default_payment_method', {}).get('value') == 'cash' %}selected{% endif %}>Cash</option>
                             <option value="card" {% if settings.get('sales', {}).get('default_payment_method', {}).get('value') == 'card' %}selected{% endif %}>Credit Card</option>
                             <option value="gcash" {% if settings.get('sales', {}).get('default_payment_method', {}).get('value') == 'gcash' %}selected{% endif %}>GCash</option>
@@ -247,7 +247,7 @@
                         <label class="toggle-switch">
                             <input type="checkbox" id="sales-enable_receipts" 
                                    {% if settings.get('sales', {}).get('enable_receipts', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('sales')">
+                                   data-mark-section="sales">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -260,7 +260,7 @@
                         <label class="toggle-switch">
                             <input type="checkbox" id="sales-email_receipts" 
                                    {% if settings.get('sales', {}).get('email_receipts', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('sales')">
+                                   data-mark-section="sales">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -280,7 +280,7 @@
                         <label class="toggle-switch">
                             <input type="checkbox" id="notifications-low_stock_email" 
                                    {% if settings.get('notifications', {}).get('low_stock_email', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('notifications')">
+                                   data-mark-section="notifications">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -293,7 +293,7 @@
                         <label class="toggle-switch">
                             <input type="checkbox" id="notifications-sales_email" 
                                    {% if settings.get('notifications', {}).get('sales_email', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('notifications')">
+                                   data-mark-section="notifications">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -306,7 +306,7 @@
                         <label class="toggle-switch">
                             <input type="checkbox" id="notifications-email_notifications" 
                                    {% if settings.get('notifications', {}).get('email_notifications', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('notifications')">
+                                   data-mark-section="notifications">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -319,7 +319,7 @@
                         <label class="toggle-switch">
                             <input type="checkbox" id="notifications-backup_reminder" 
                                    {% if settings.get('notifications', {}).get('backup_reminder', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('notifications')">
+                                   data-mark-section="notifications">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -329,7 +329,7 @@
                         <input type="email" id="notifications-notification_email" 
                                value="{{ settings.get('notifications', {}).get('notification_email', {}).get('value', 'admin@jrfmotorparts.com') }}"
                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               onchange="markSectionAsChanged('notifications')">
+                               data-mark-section="notifications">
                     </div>
                 </div>
             </div>
@@ -345,10 +345,10 @@
                     </div>
                     
                     <div class="flex space-x-3">
-                        <button onclick="createBackup()" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                        <button class="js-create-backup flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
                             <i class="fas fa-download mr-2"></i>Create Backup
                         </button>
-                        <button onclick="restoreBackup()" class="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                        <button class="js-restore-backup flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
                             <i class="fas fa-upload mr-2"></i>Restore Backup
                         </button>
                     </div>
@@ -361,7 +361,7 @@
                         <label class="toggle-switch">
                             <input type="checkbox" id="backup-auto_backup" 
                                    {% if settings.get('backup', {}).get('auto_backup', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('backup')">
+                                   data-mark-section="backup">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -369,7 +369,7 @@
                     <div>
                         <label for="backup-backup_frequency" class="block text-sm font-medium text-gray-700 mb-1">Backup Frequency</label>
                         <select id="backup-backup_frequency" class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                onchange="markSectionAsChanged('backup')">
+                                data-mark-section="backup">
                             <option value="daily" {% if settings.get('backup', {}).get('backup_frequency', {}).get('value') == 'daily' %}selected{% endif %}>Daily</option>
                             <option value="weekly" {% if settings.get('backup', {}).get('backup_frequency', {}).get('value') == 'weekly' %}selected{% endif %}>Weekly</option>
                             <option value="monthly" {% if settings.get('backup', {}).get('backup_frequency', {}).get('value') == 'monthly' %}selected{% endif %}>Monthly</option>
@@ -381,7 +381,7 @@
                         <input type="number" id="backup-backup_retention" 
                                value="{{ settings.get('backup', {}).get('backup_retention', {}).get('value', '30') }}" min="1" max="365"
                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               onchange="markSectionAsChanged('backup')">
+                               data-mark-section="backup">
                     </div>
                     
                     <div>
@@ -389,7 +389,7 @@
                         <input type="text" id="backup-backup_location" 
                                value="{{ settings.get('backup', {}).get('backup_location', {}).get('value', './backups') }}"
                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               onchange="markSectionAsChanged('backup')">
+                               data-mark-section="backup">
                     </div>
                 </div>
             </div>
@@ -405,7 +405,7 @@
                         <input type="number" id="security-session_timeout"
                                value="{{ settings.get('security', {}).get('session_timeout', {}).get('value', '30') }}" min="5" max="480"
                                class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               onchange="markSectionAsChanged('security')">
+                               data-mark-section="security">
                     </div>
                     
                     <div class="flex items-center justify-between">
@@ -416,7 +416,7 @@
                         <input type="number" id="security-password_min_length" 
                                value="{{ settings.get('security', {}).get('password_min_length', {}).get('value', '8') }}" min="4" max="50"
                                class="w-20 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               onchange="markSectionAsChanged('security')">
+                               data-mark-section="security">
                     </div>
                     
                     <div class="flex items-center justify-between">
@@ -427,7 +427,7 @@
                         <label class="toggle-switch">
                             <input type="checkbox" id="security-require_password_change" 
                                    {% if settings.get('security', {}).get('require_password_change', {}).get('value') == 'true' %}checked{% endif %}
-                                   onchange="markSectionAsChanged('security')">
+                                   data-mark-section="security">
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -440,11 +440,11 @@
                         <input type="number" id="security-login_attempts"
                                value="{{ settings.get('security', {}).get('login_attempts', {}).get('value', '3') }}" min="1" max="10"
                                class="w-20 px-2 py-1 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                               onchange="markSectionAsChanged('security')">
+                               data-mark-section="security">
                     </div>
                     
                     <div class="border-t pt-4">
-                        <button type="button" onclick="openChangePasswordModal()" class="w-full bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 transition-colors cursor-pointer">
+                        <button type="button" class="js-open-change-password-modal w-full bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 transition-colors cursor-pointer">
                             <i class="fas fa-key mr-2"></i>Change Admin Password
                         </button>
                     </div>
@@ -460,12 +460,12 @@
         <div class="bg-white rounded-lg max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold text-gray-900">Change Password</h3>
-                <button type="button" onclick="closeChangePasswordModal()" class="text-gray-400 hover:text-gray-600">
+                <button type="button" class="js-close-change-password-modal text-gray-400 hover:text-gray-600">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <form id="changePasswordForm" onsubmit="submitChangePassword(event)" class="space-y-4">
+            <form id="changePasswordForm" class="space-y-4">
                 <div>
                     <label for="cp-current" class="block text-sm font-medium text-gray-700">Current Password</label>
                     <input type="password" id="cp-current" required autocomplete="current-password"
@@ -483,7 +483,7 @@
                 </div>
 
                 <div class="mt-6 flex justify-end space-x-3">
-                    <button type="button" onclick="closeChangePasswordModal()" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
+                    <button type="button" class="js-close-change-password-modal px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors">
                         Cancel
                     </button>
                     <button type="submit" class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors cursor-pointer">
@@ -497,227 +497,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    // Global variables
-    let changedSections = new Set();
-    let currentSection = 'general';
-
-    // Initialize settings
-    document.addEventListener('DOMContentLoaded', function() {
-        showSection('general');
-    });
-
-    // Section navigation
-    function showSection(section) {
-        // Hide all sections
-        document.querySelectorAll('.settings-section').forEach(el => {
-            el.classList.add('hidden');
-        });
-        
-        // Remove active state from all nav buttons
-        document.querySelectorAll('.settings-nav-btn').forEach(btn => {
-            btn.classList.remove('bg-blue-50', 'text-blue-600');
-        });
-        
-        // Show selected section
-        const targetSection = document.getElementById(section + '-section');
-        if (targetSection) {
-            targetSection.classList.remove('hidden');
-        }
-        
-        // Add active state to clicked button
-        const activeBtn = document.querySelector(`[onclick="showSection('${section}')"]`);
-        if (activeBtn) {
-            activeBtn.classList.add('bg-blue-50', 'text-blue-600');
-        }
-        
-        currentSection = section;
-    }
-
-    // Mark section as changed
-    function markSectionAsChanged(section) {
-        changedSections.add(section);
-    }
-
-    // Collect settings from a section
-    function collectSectionSettings(section) {
-        const settings = {};
-        const sectionElement = document.getElementById(section + '-section');
-        
-        if (!sectionElement) return settings;
-        
-        // Collect all inputs in the section
-        const inputs = sectionElement.querySelectorAll('input, select, textarea');
-        inputs.forEach(input => {
-            const key = input.id.replace(section + '-', '');
-            if (input.type === 'checkbox') {
-                settings[key] = input.checked ? 'true' : 'false';  // Convert boolean to string
-            } else if (input.type === 'number') {
-                settings[key] = parseFloat(input.value) || 0;
-            } else {
-                settings[key] = input.value;
-            }
-        });
-        
-        return settings;
-    }
-
-    const SETTING_SECTIONS =
-        ['general', 'inventory', 'sales', 'notifications', 'backup', 'security'];
-
-    // Save all settings
-    async function saveAllSettings() {
-        const payload = {};
-        SETTING_SECTIONS.forEach(function (section) {
-            payload[section] = collectSectionSettings(section);
-        });
-
-        const result = await JRF.api('/api/settings', { method: 'POST', body: payload });
-        if (!result.ok) {
-            JRF.notifyError(result, 'Failed to save settings.');
-            return;
-        }
-
-        changedSections.clear();
-        const updated = (result.data && result.data.updated) || [];
-        const errors = (result.data && result.data.errors) || [];
-        JRF.notify(`Saved ${updated.length} setting(s).`, 'success');
-        // Partial success is reported, not silently swallowed.
-        if (errors.length) JRF.notify(errors.join('  |  '), 'warning');
-    }
-
-    // Export settings
-    async function exportSettings() {
-        const result = await JRF.api('/api/settings/export');
-        if (!result.ok) {
-            JRF.notifyError(result, 'Failed to export settings.');
-            return;
-        }
-
-        const blob = new Blob([JSON.stringify(result.data, null, 2)], {
-            type: 'application/json',
-        });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `settings_export_${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        JRF.notify('Settings exported.', 'success');
-    }
-
-    // Import settings
-    async function importSettings(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const result = await JRF.api('/api/settings/import', {
-            method: 'POST',
-            body: formData,
-        });
-        event.target.value = '';
-
-        if (!result.ok) {
-            JRF.notifyError(result, 'Failed to import settings.');
-            return;
-        }
-
-        JRF.notify('Settings imported. Reloading…', 'success');
-        setTimeout(function () { window.location.reload(); }, 1500);
-    }
-
-    // Reset settings
-    async function resetSettings() {
-        if (!confirm('Reset all settings to defaults? This cannot be undone.')) return;
-
-        const result = await JRF.api('/api/settings/reset', { method: 'POST' });
-        if (!result.ok) {
-            JRF.notifyError(result, 'Failed to reset settings.');
-            return;
-        }
-
-        JRF.notify('Settings reset to defaults. Reloading…', 'success');
-        setTimeout(function () { window.location.reload(); }, 1000);
-    }
-
-    // Create backup
-    async function createBackup() {
-        JRF.notify('Starting backup…', 'info');
-        const result = await JRF.api('/api/system/backups', { method: 'POST' });
-        if (!result.ok) {
-            JRF.notifyError(result, 'Backup failed.');
-            return;
-        }
-
-        JRF.notify('Backup created. Reloading…', 'success');
-        setTimeout(function () { window.location.reload(); }, 1000);
-    }
-
-    // Restore is deliberately not wired up: there is no restore endpoint, and
-    // a half-built one on this screen would be the most dangerous button here.
-    function restoreBackup() {
-        JRF.notify(
-            'Restore is not available yet. Use pg_restore against a downloaded backup.',
-            'warning'
-        );
-    }
-
-    // Change password modal
-    function openChangePasswordModal() {
-        document.getElementById('changePasswordModal').classList.remove('hidden');
-        document.getElementById('cp-current').focus();
-    }
-
-    function closeChangePasswordModal() {
-        document.getElementById('changePasswordModal').classList.add('hidden');
-        document.getElementById('changePasswordForm').reset();
-    }
-
-    async function submitChangePassword(event) {
-        event.preventDefault();
-
-        const current_password = document.getElementById('cp-current').value;
-        const new_password = document.getElementById('cp-new').value;
-        const confirm_password = document.getElementById('cp-confirm').value;
-
-        if (new_password !== confirm_password) {
-            JRF.notify('New passwords do not match.', 'error');
-            return;
-        }
-
-        const result = await JRF.api('/api/auth/change-password', {
-            method: 'POST',
-            body: { current_password: current_password, new_password: new_password },
-        });
-
-        if (!result.ok) {
-            JRF.notifyError(result, 'Could not change password.');
-            return;
-        }
-
-        closeChangePasswordModal();
-        JRF.notify('Password changed successfully.', 'success');
-    }
-
-    // Test database connection
-    async function testConnection() {
-        const result = await JRF.api('/health');
-        const healthy = result.ok && result.data && result.data.database === 'connected';
-        JRF.notify(
-            healthy ? 'Database connection successful.' : 'Database connection failed.',
-            healthy ? 'success' : 'error'
-        );
-    }
-
-    // Initialize with general section
-    document.addEventListener('DOMContentLoaded', function() {
-        showSection('general');
-    });
-</script>
+<script src="{{ url_for('static', filename='js/pages/settings.js') }}"></script>
 {% endblock %}

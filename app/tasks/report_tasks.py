@@ -15,6 +15,7 @@ from celery import shared_task
 from sqlalchemy import func
 
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import Part, Sale, User
 from app.services.dashboard import DashboardService
 from app.services.sales import SalesService
@@ -46,7 +47,7 @@ def _queue_report(subject: str, body: str, csv_content: str) -> int:
 @shared_task
 def generate_daily_sales_report():
     """Generate and distribute yesterday's sales report."""
-    yesterday = datetime.utcnow().date() - timedelta(days=1)
+    yesterday = now_utc().date() - timedelta(days=1)
     start_date = datetime.combine(yesterday, datetime.min.time())
     end_date = datetime.combine(yesterday, datetime.max.time())
 
@@ -165,7 +166,7 @@ def generate_inventory_report():
         .all()
     )
 
-    today = datetime.utcnow().date()
+    today = now_utc().date()
 
     output = io.StringIO()
     writer = csv.writer(output)

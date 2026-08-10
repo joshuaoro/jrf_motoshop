@@ -11,6 +11,7 @@ from flask_login import current_user
 
 from app.core.config import config, describe_database, get_config, is_local_database
 from app.core.extensions import csrf, db, init_extensions
+from app.core.time_utils import now_utc, time_ago
 from app.core.security import (
     init_limiter,
     init_security_middleware,
@@ -106,7 +107,7 @@ def register_core_routes(app):
                         "status": "healthy",
                         "database": "connected",
                         "version": app.config.get("APP_VERSION", "2.0.3"),
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": now_utc().isoformat() + "Z",
                     }
                 ),
                 200,
@@ -118,7 +119,7 @@ def register_core_routes(app):
                     {
                         "status": "unhealthy",
                         "database": "disconnected",
-                        "timestamp": datetime.utcnow().isoformat() + "Z",
+                        "timestamp": now_utc().isoformat() + "Z",
                     }
                 ),
                 503,
@@ -309,7 +310,7 @@ def register_template_context(app):
         return {
             "app_name": "JRF Motorcycle Parts",
             "app_version": app.config.get("APP_VERSION", "2.0.3"),
-            "current_year": datetime.utcnow().year,
+            "current_year": now_utc().year,
         }
 
     @app.context_processor
@@ -346,7 +347,7 @@ def register_template_context(app):
     def _coerce_datetime(value):
         if isinstance(value, str):
             try:
-                return datetime.fromisoformat(value.replace("Z", "+00:00"))
+                return datetime.fromisoformat(value)
             except ValueError:
                 return None
         return value if isinstance(value, datetime) else None
@@ -358,35 +359,11 @@ def register_template_context(app):
         return moment.strftime(fmt) if moment else "-"
 
     @app.template_filter("time_ago")
-    def time_ago(value):
+    def time_ago_filter(value):
         """Human-readable relative time, e.g. "5 minutes ago".
 
         Used by the dashboard activity feed and the notification dropdown.
+        Delegates to ``time_utils.time_ago`` so ``Notification.to_dict()``
+        (consumed by the notifications page's JS) computes the same string.
         """
-        moment = _coerce_datetime(value)
-        if moment is None:
-            return ""
-
-        # Compare naive-to-naive; model timestamps are stored as naive UTC.
-        if moment.tzinfo is not None:
-            moment = moment.replace(tzinfo=None)
-
-        seconds = (datetime.utcnow() - moment).total_seconds()
-        if seconds < 0:
-            return "just now"
-
-        for limit, divisor, unit in (
-            (60, 1, "second"),
-            (3600, 60, "minute"),
-            (86400, 3600, "hour"),
-            (2592000, 86400, "day"),
-            (31536000, 2592000, "month"),
-        ):
-            if seconds < limit:
-                count = int(seconds // divisor)
-                if count <= 0:
-                    return "just now"
-                return f"{count} {unit}{'s' if count != 1 else ''} ago"
-
-        years = int(seconds // 31536000)
-        return f"{years} year{'s' if years != 1 else ''} ago"
+        return time_ago(_coerce_datetime(value))

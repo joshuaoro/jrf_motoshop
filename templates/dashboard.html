@@ -92,15 +92,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    // Auto-refresh the dashboard every 5 minutes
-    setTimeout(function() {
-        window.location.reload();
-    }, 5 * 60 * 1000);
-    
-    // Initialize any dashboard-specific JavaScript here
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Dashboard initialized');
-    });
-</script>
+<script src="{{ url_for('static', filename='js/pages/dashboard.js') }}"></script>
 {% endblock %}

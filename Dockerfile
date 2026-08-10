@@ -48,6 +48,15 @@ COPY --chown=appuser:appuser . .
 # Writable volumes for logs and database dumps.
 RUN mkdir -p /app/logs /app/backups && chown -R appuser:appuser /app/logs /app/backups
 
+# celery-beat's schedule file needs a writable directory too, but NOT one of
+# the above: docker-compose.yml bind-mounts ./logs and ./backups from the
+# host, which replaces this image's directory (and the chown above) with
+# whatever the host filesystem provides. On a fresh checkout Docker creates
+# missing bind-mount sources owned by root, so appuser cannot write into
+# them there - only inside the image's own layers is the chown below
+# guaranteed to still apply at runtime.
+RUN mkdir -p /app/celerybeat && chown -R appuser:appuser /app/celerybeat
+
 USER appuser
 
 ENV FLASK_ENV=production \

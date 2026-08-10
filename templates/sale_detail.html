@@ -104,9 +104,13 @@
         <a href="{{ url_for('sales_web.index') }}" class="btn-secondary w-full">
             <i class="fas fa-arrow-left mr-2"></i>Back to Sales
         </a>
-        <button onclick="printInvoice()" class="btn-primary w-full">
+        <button type="button" class="js-print-invoice btn-primary w-full">
             <i class="fas fa-print mr-2"></i>Print Invoice
         </button>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/pages/sale_detail.js') }}"></script>
 {% endblock %}

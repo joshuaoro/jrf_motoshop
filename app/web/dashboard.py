@@ -3,7 +3,6 @@ Web dashboard blueprint - login, dashboard and notifications pages.
 """
 
 import logging
-from datetime import datetime
 from urllib.parse import urlparse
 
 from flask import (
@@ -18,6 +17,7 @@ from flask import (
 from flask_login import current_user, login_required, login_user, logout_user
 
 from app.core.extensions import db, limiter
+from app.core.time_utils import now_utc
 from app.models import User
 from app.services.dashboard import DashboardService
 from app.services.system import NotificationService
@@ -97,7 +97,7 @@ def login():
             return render_template("login.html"), 403
 
         login_user(user, remember=remember)
-        user.last_login = datetime.utcnow()
+        user.last_login = now_utc()
         db.session.commit()
 
         logger.info("Web login: %s (%s)", user.email, user.role)

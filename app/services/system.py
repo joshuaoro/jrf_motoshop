@@ -4,8 +4,8 @@ Settings and Notification services
 
 from typing import List, Optional, Dict, Any
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import Settings, Notification, User
-from datetime import datetime
 
 
 class SettingsService:
@@ -322,7 +322,7 @@ class SettingsService:
                     old_value = setting.get_value()
                     setting.set_value(value)
                     setting.updated_by = user_id
-                    setting.updated_at = datetime.utcnow()
+                    setting.updated_at = now_utc()
 
                     updated.append(
                         {
@@ -354,7 +354,7 @@ class SettingsService:
                 setting = Settings.query.filter_by(category=cat, setting_key=key).first()
                 if setting:
                     setting.set_value(config["value"])
-                    setting.updated_at = datetime.utcnow()
+                    setting.updated_at = now_utc()
                     count += 1
         db.session.commit()
         return count
@@ -484,7 +484,7 @@ class NotificationService:
 
         if not notification.is_read:
             notification.is_read = True
-            notification.read_at = datetime.utcnow()
+            notification.read_at = now_utc()
             db.session.commit()
 
         return True
@@ -495,7 +495,7 @@ class NotificationService:
         count = len(notifications)
         for notification in notifications:
             notification.is_read = True
-            notification.read_at = datetime.utcnow()
+            notification.read_at = now_utc()
         db.session.commit()
         return count
 

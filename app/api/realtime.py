@@ -6,14 +6,14 @@ with the dashboard API through ``DashboardService`` rather than keeping a
 second, slightly different copy of the same queries.
 """
 
-from datetime import datetime
-
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import Customer, Notification, Part, Sale
 from app.services.dashboard import DashboardService
+from app.services.sales import CustomerService
 
 realtime_bp = Blueprint("realtime", __name__)
 
@@ -28,7 +28,7 @@ def _limit(default: int, maximum: int = 100) -> int:
 def realtime_stats():
     """Real-time dashboard stats"""
     stats = DashboardService.get_stats()
-    stats["timestamp"] = datetime.utcnow().isoformat() + "Z"
+    stats["timestamp"] = now_utc().isoformat() + "Z"
     return jsonify(stats)
 
 
@@ -141,6 +141,11 @@ def realtime_customers():
         .limit(_limit(10, 50))
         .all()
     )
+
+    # total_orders / total_spent otherwise run one query per row from the
+    # per-instance fallbacks; the list is polled every few seconds, so batch
+    # the two aggregates for the whole page in one grouped query.
+    CustomerService._attach_stats(customers)
 
     return jsonify(
         [

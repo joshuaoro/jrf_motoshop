@@ -3,7 +3,7 @@ Database models - Inventory (Parts, Suppliers, Stock)
 """
 
 from app.core.extensions import db
-from datetime import datetime
+from app.core.time_utils import now_utc
 
 
 class Part(db.Model):
@@ -26,8 +26,8 @@ class Part(db.Model):
     barcode = db.Column(db.String(100), unique=True, index=True, nullable=True)
     location = db.Column(db.String(50))  # Shelf/bin location
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
     # Relationships
     stock_entries = db.relationship(
@@ -117,8 +117,8 @@ class Supplier(db.Model):
     contact_person = db.Column(db.String(100))
     payment_terms = db.Column(db.String(50))  # Net 30, COD, etc.
     is_active = db.Column(db.Boolean, default=True, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
     # Relationships
     parts = db.relationship("Part", secondary="supplier_part", back_populates="suppliers")
@@ -162,7 +162,7 @@ supplier_part = db.Table(
     db.Column("cost_price", db.Numeric(10, 2)),  # Supplier's price
     db.Column("lead_time_days", db.Integer),
     db.Column("is_preferred", db.Boolean, default=False),
-    db.Column("created_at", db.DateTime, default=datetime.utcnow),
+    db.Column("created_at", db.DateTime, default=now_utc),
 )
 
 
@@ -172,7 +172,7 @@ class StockEntry(db.Model):
     __tablename__ = "stock_entries"
 
     id = db.Column(db.Integer, primary_key=True)
-    entry_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    entry_date = db.Column(db.DateTime, default=now_utc, nullable=False, index=True)
     quantity = db.Column(db.Integer, nullable=False)  # Positive for in, negative for out
     movement_type = db.Column(
         db.String(20), nullable=False, index=True

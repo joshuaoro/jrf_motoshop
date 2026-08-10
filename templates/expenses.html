@@ -13,8 +13,7 @@
             <h1 class="text-2xl font-bold text-gray-800">Expense Register</h1>
             <p class="text-sm text-gray-500">Track what the shop spends, by category and period.</p>
         </div>
-        <button type="button" onclick="openExpenseModal()"
-                class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+        <button type="button" class="js-open-expense-modal bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
             <i class="fas fa-plus mr-2"></i>Record Expense
         </button>
     </div>
@@ -106,12 +105,12 @@
                         <td class="px-4 py-3 text-sm text-gray-600 capitalize">{{ expense.payment_method|replace('_', ' ') }}</td>
                         <td class="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">{{ expense.amount|peso }}</td>
                         <td class="px-4 py-3 text-right whitespace-nowrap">
-                            <button type="button" class="text-blue-600 hover:text-blue-800 mr-3"
-                                    data-expense='{{ expense|tojson }}' onclick="editExpense(this)" title="Edit">
+                            <button type="button" class="js-edit-expense text-blue-600 hover:text-blue-800 mr-3"
+                                    data-expense='{{ expense|tojson }}' title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button type="button" class="text-red-600 hover:text-red-800"
-                                    data-expense-id="{{ expense.id }}" onclick="askDelete(this)" title="Delete">
+                            <button type="button" class="js-ask-delete-expense text-red-600 hover:text-red-800"
+                                    data-expense-id="{{ expense.id }}" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </td>
@@ -122,8 +121,7 @@
                             <i class="fas fa-receipt text-5xl text-gray-300 mb-3"></i>
                             <p class="text-gray-600 font-medium">No expenses recorded</p>
                             <p class="text-gray-400 text-sm mb-4">Expenses recorded here feed the profitability and expense reports.</p>
-                            <button type="button" onclick="openExpenseModal()"
-                                    class="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700">
+                            <button type="button" class="js-open-expense-modal bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700">
                                 <i class="fas fa-plus mr-2"></i>Record the first expense
                             </button>
                         </td>
@@ -156,7 +154,7 @@
     <div class="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-semibold" id="expenseModalTitle">Record Expense</h3>
-            <button type="button" onclick="closeExpenseModal()" class="text-gray-400 hover:text-gray-600">
+            <button type="button" class="js-close-expense-modal text-gray-400 hover:text-gray-600">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -219,7 +217,7 @@
             </div>
 
             <div class="flex justify-end space-x-3 pt-2">
-                <button type="button" onclick="closeExpenseModal()" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
+                <button type="button" class="js-close-expense-modal px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
                 <button type="submit" id="expenseSubmit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Save Expense</button>
             </div>
         </form>
@@ -233,134 +231,13 @@
         <h3 class="text-lg font-semibold mb-2">Delete this expense?</h3>
         <p class="text-gray-600 mb-6">This cannot be undone.</p>
         <div class="flex justify-center space-x-3">
-            <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
-            <button type="button" onclick="confirmDelete()" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Delete</button>
+            <button type="button" class="js-close-delete-modal px-4 py-2 text-gray-600 border rounded-md hover:bg-gray-50">Cancel</button>
+            <button type="button" class="js-confirm-delete px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Delete</button>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-    let deleteTargetId = null;
-
-    function showError(message) {
-        const box = document.getElementById('expenseError');
-        box.textContent = message;
-        box.classList.remove('hidden');
-    }
-
-    function clearError() {
-        document.getElementById('expenseError').classList.add('hidden');
-    }
-
-    /** Turn the API's {details: {field: [msg]}} into one readable line. */
-
-    function openExpenseModal() {
-        clearError();
-        document.getElementById('expenseModalTitle').textContent = 'Record Expense';
-        document.getElementById('expenseForm').reset();
-        document.getElementById('expenseId').value = '';
-        document.getElementById('expenseModal').classList.remove('hidden');
-    }
-
-    function editExpense(button) {
-        clearError();
-        const expense = JSON.parse(button.getAttribute('data-expense'));
-
-        document.getElementById('expenseModalTitle').textContent = 'Edit Expense';
-        document.getElementById('expenseId').value = expense.id;
-        document.getElementById('expenseCategory').value = expense.category;
-        document.getElementById('expenseAmount').value = expense.amount;
-        document.getElementById('expenseDescription').value = expense.description || '';
-        document.getElementById('expensePaymentMethod').value = expense.payment_method;
-        document.getElementById('expenseDate').value =
-            expense.expense_date ? expense.expense_date.slice(0, 10) : '';
-        document.getElementById('expenseVendor').value = expense.vendor || '';
-        document.getElementById('expenseReceipt').value = expense.receipt_number || '';
-        document.getElementById('expenseNotes').value = expense.notes || '';
-        document.getElementById('expenseModal').classList.remove('hidden');
-    }
-
-    function closeExpenseModal() {
-        document.getElementById('expenseModal').classList.add('hidden');
-    }
-
-    function askDelete(button) {
-        deleteTargetId = button.getAttribute('data-expense-id');
-        document.getElementById('deleteModal').classList.remove('hidden');
-    }
-
-    function closeDeleteModal() {
-        document.getElementById('deleteModal').classList.add('hidden');
-        deleteTargetId = null;
-    }
-
-    async function confirmDelete() {
-        if (!deleteTargetId) return;
-        try {
-            const response = await fetch(`/api/expenses/${deleteTargetId}`, {
-                method: 'DELETE',
-                credentials: 'same-origin',
-            });
-            if (!response.ok) {
-                const payload = await response.json().catch(() => null);
-                alert(JRF.errorMessage(payload, 'Could not delete the expense.'));
-                return;
-            }
-            location.reload();
-        } catch (error) {
-            console.error(error);
-            alert('Could not reach the server.');
-        }
-    }
-
-    document.getElementById('expenseForm').addEventListener('submit', async function (event) {
-        event.preventDefault();
-        clearError();
-
-        const submit = document.getElementById('expenseSubmit');
-        const expenseId = document.getElementById('expenseId').value;
-        const dateValue = document.getElementById('expenseDate').value;
-
-        const payload = {
-            category: document.getElementById('expenseCategory').value,
-            amount: document.getElementById('expenseAmount').value,
-            description: document.getElementById('expenseDescription').value,
-            payment_method: document.getElementById('expensePaymentMethod').value,
-            vendor: document.getElementById('expenseVendor').value || null,
-            receipt_number: document.getElementById('expenseReceipt').value || null,
-            notes: document.getElementById('expenseNotes').value || null,
-        };
-        // A bare date needs a time component to parse as a datetime.
-        if (dateValue) payload.expense_date = `${dateValue}T00:00:00`;
-
-        submit.disabled = true;
-        try {
-            const response = await fetch(
-                expenseId ? `/api/expenses/${expenseId}` : '/api/expenses',
-                {
-                    method: expenseId ? 'PUT' : 'POST',
-                    credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                }
-            );
-
-            // Success is the 2xx status, not a `success` field - these
-            // endpoints return the saved object.
-            if (!response.ok) {
-                const body = await response.json().catch(() => null);
-                showError(JRF.errorMessage(body, 'Could not save the expense.'));
-                return;
-            }
-            location.reload();
-        } catch (error) {
-            console.error(error);
-            showError('Could not reach the server.');
-        } finally {
-            submit.disabled = false;
-        }
-    });
-</script>
+<script src="{{ url_for('static', filename='js/pages/expenses.js') }}"></script>
 {% endblock %}

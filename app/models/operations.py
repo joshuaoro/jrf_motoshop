@@ -3,7 +3,7 @@ Database models - Purchase Orders, Expenses, Maintenance
 """
 
 from app.core.extensions import db
-from datetime import datetime
+from app.core.time_utils import now_utc
 import uuid
 
 
@@ -20,7 +20,7 @@ class PurchaseOrder(db.Model):
         nullable=False,
         index=True,
     )
-    order_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    order_date = db.Column(db.DateTime, default=now_utc, nullable=False, index=True)
     expected_date = db.Column(db.DateTime, index=True)
     received_date = db.Column(db.DateTime)
     status = db.Column(
@@ -32,8 +32,8 @@ class PurchaseOrder(db.Model):
     total_amount = db.Column(db.Numeric(10, 2), default=0)
     notes = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey("staff.id"))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
     # Relationships
     items = db.relationship(
@@ -48,7 +48,7 @@ class PurchaseOrder(db.Model):
 
     @staticmethod
     def generate_order_number() -> str:
-        return f"PO-{datetime.utcnow().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+        return f"PO-{now_utc().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
 
     def to_dict(self, include_items: bool = False) -> dict:
         data = {
@@ -143,7 +143,7 @@ class Expense(db.Model):
     __tablename__ = "expenses"
 
     id = db.Column(db.Integer, primary_key=True)
-    expense_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    expense_date = db.Column(db.DateTime, default=now_utc, nullable=False, index=True)
     category = db.Column(
         db.String(50), nullable=False, index=True
     )  # rent, utilities, supplies, maintenance, marketing, other
@@ -157,8 +157,8 @@ class Expense(db.Model):
     recurring_frequency = db.Column(db.String(20))  # monthly, quarterly, yearly
     notes = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey("staff.id"))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
     def to_dict(self) -> dict:
         return {
@@ -188,7 +188,7 @@ class MaintenanceLog(db.Model):
     part_id = db.Column(db.Integer, db.ForeignKey("parts.id", ondelete="SET NULL"), index=True)
     equipment_name = db.Column(db.String(100), nullable=False)
     equipment_serial = db.Column(db.String(100))
-    maintenance_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    maintenance_date = db.Column(db.DateTime, default=now_utc, nullable=False, index=True)
     maintenance_type = db.Column(
         db.String(20), nullable=False, index=True
     )  # preventive, corrective, emergency, inspection
@@ -200,13 +200,13 @@ class MaintenanceLog(db.Model):
     next_maintenance = db.Column(db.DateTime, index=True)
     notes = db.Column(db.Text)
     created_by = db.Column(db.Integer, db.ForeignKey("staff.id"))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=now_utc, nullable=False)
+    updated_at = db.Column(db.DateTime, default=now_utc, onupdate=now_utc)
 
     @property
     def is_overdue(self) -> bool:
         if self.next_maintenance:
-            return datetime.utcnow() > self.next_maintenance
+            return now_utc() > self.next_maintenance
         return False
 
     def to_dict(self) -> dict:

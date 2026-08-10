@@ -16,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import (
     Expense,
     MaintenanceLog,
@@ -86,7 +87,7 @@ class ExpenseService:
     @staticmethod
     def create_expense(data: dict, user_id: int) -> Expense:
         data = dict(data)
-        data.setdefault("expense_date", datetime.utcnow())
+        data.setdefault("expense_date", now_utc())
 
         try:
             expense = Expense(created_by=user_id, **data)
@@ -350,7 +351,7 @@ class PurchaseOrderService:
 
             fully_received = all(item.is_fully_received for item in order.items)
             order.status = "received" if fully_received else "partial"
-            order.received_date = datetime.utcnow() if fully_received else None
+            order.received_date = now_utc() if fully_received else None
 
             db.session.commit()
         except (SQLAlchemyError, ValueError):
@@ -398,7 +399,7 @@ class MaintenanceService:
         if overdue_only:
             query = query.filter(
                 MaintenanceLog.next_maintenance.isnot(None),
-                MaintenanceLog.next_maintenance < datetime.utcnow(),
+                MaintenanceLog.next_maintenance < now_utc(),
             )
 
         pagination = query.order_by(MaintenanceLog.maintenance_date.desc()).paginate(
@@ -415,7 +416,7 @@ class MaintenanceService:
         """Counts for the maintenance page header."""
         from sqlalchemy import func as sa_func
 
-        now = datetime.utcnow()
+        now = now_utc()
 
         soon = now + timedelta(days=30)
 
@@ -455,7 +456,7 @@ class MaintenanceService:
     @staticmethod
     def create_log(data: dict, user_id: int) -> MaintenanceLog:
         data = dict(data)
-        data.setdefault("maintenance_date", datetime.utcnow())
+        data.setdefault("maintenance_date", now_utc())
 
         if data.get("part_id") and not db.session.get(Part, data["part_id"]):
             raise ValueError(f"Part {data['part_id']} not found")

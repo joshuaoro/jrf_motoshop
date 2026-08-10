@@ -4,7 +4,7 @@ System API blueprint - health, logs, backups, maintenance
 
 import logging
 import subprocess
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 from flask import Blueprint, current_app, jsonify, request, send_file
@@ -18,6 +18,7 @@ from app.api.utils import (
     parse_date_arg,
 )
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import AuditLog, BackupLog, Notification, SystemLog
 from app.services.system import SettingsService
 
@@ -52,7 +53,7 @@ def health_check():
         {
             "status": "healthy" if healthy else "unhealthy",
             "database": "connected" if healthy else "disconnected",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": now_utc().isoformat() + "Z",
         }
     ), (200 if healthy else 503)
 
@@ -202,7 +203,7 @@ def create_backup():
     except OSError as exc:
         return error(f"Cannot create backup directory: {exc}", 500)
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = now_utc().strftime("%Y%m%d_%H%M%S")
     filepath = backup_dir / f"jrf_backup_{timestamp}.sql"
 
     backup_log = BackupLog(
@@ -238,21 +239,21 @@ def create_backup():
 
         backup_log.file_size = filepath.stat().st_size
         backup_log.status = "success"
-        backup_log.completed_at = datetime.utcnow()
+        backup_log.completed_at = now_utc()
         backup_log.tables_included = "all"
         db.session.commit()
 
     except FileNotFoundError:
         backup_log.status = "failed"
         backup_log.error_message = "pg_dump executable not found on PATH"
-        backup_log.completed_at = datetime.utcnow()
+        backup_log.completed_at = now_utc()
         db.session.commit()
         return error("Backup failed: pg_dump is not installed on the server", 500)
 
     except Exception as exc:
         backup_log.status = "failed"
         backup_log.error_message = str(exc)[:500]
-        backup_log.completed_at = datetime.utcnow()
+        backup_log.completed_at = now_utc()
         if filepath.exists():
             filepath.unlink(missing_ok=True)
         db.session.commit()
@@ -313,7 +314,7 @@ def maintenance_cleanup():
         return error("'days' must be at least 1", 400)
 
     dry_run = bool(data.get("dry_run", False))
-    now = datetime.utcnow()
+    now = now_utc()
 
     targets = (
         (

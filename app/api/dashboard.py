@@ -5,13 +5,14 @@ All aggregation lives in ``DashboardService`` so this module, the realtime
 poller and the server-rendered dashboard cannot report different numbers.
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from flask import Blueprint, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import Part, Sale, SaleDetail
 from app.services.dashboard import DashboardService
 from app.services.inventory import InventoryService
@@ -32,7 +33,7 @@ def dashboard_stats():
     """Dashboard statistics"""
     stats = DashboardService.get_stats()
     stats["unread_notifications"] = NotificationService.get_unread_count(current_user.id)
-    stats["timestamp"] = datetime.utcnow().isoformat() + "Z"
+    stats["timestamp"] = now_utc().isoformat() + "Z"
     return jsonify(stats)
 
 
@@ -92,7 +93,7 @@ def sales_chart():
 def top_parts():
     """Top selling parts for dashboard"""
     days = max(1, min(request.args.get("days", 30, type=int) or 30, 365))
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = now_utc() - timedelta(days=days)
     return jsonify(SalesService.get_top_selling_parts(_limit(5, 50), start_date))
 
 
@@ -105,7 +106,7 @@ def todays_sales():
     /api/todays-sales route that was never implemented.
     """
     stats = DashboardService.get_stats()
-    today = datetime.utcnow().date()
+    today = now_utc().date()
 
     # The reports page fills its "Today's Sales Details" table from this
     # ``sales`` array, so it must carry the per-sale display fields the
@@ -154,7 +155,7 @@ def overview():
     browser and leaves the whole page blank.
     """
     days = max(1, min(request.args.get("days", 30, type=int) or 30, 365))
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = now_utc() - timedelta(days=days)
 
     stats = DashboardService.get_stats()
     summary = SalesService.get_sales_summary()

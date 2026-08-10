@@ -11,7 +11,7 @@ Run with ``flask --app wsgi <command>``, e.g.::
 import secrets
 import string
 import subprocess
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -20,6 +20,7 @@ from flask import current_app
 from flask.cli import with_appcontext
 
 from app.core.extensions import db
+from app.core.time_utils import now_utc
 from app.models import Customer, Part, Supplier, User
 from app.services.system import SettingsService
 
@@ -379,7 +380,7 @@ def backup_db_command(output):
             SettingsService.get_setting("backup", "backup_location")
             or current_app.config.get("BACKUP_DIR", "./backups")
         )
-        target = backup_dir / f"jrf_backup_{datetime.utcnow():%Y%m%d_%H%M%S}.sql"
+        target = backup_dir / f"jrf_backup_{now_utc():%Y%m%d_%H%M%S}.sql"
 
     target.parent.mkdir(parents=True, exist_ok=True)
     click.echo(f"Creating backup: {target}")
@@ -399,6 +400,14 @@ def backup_db_command(output):
             err=True,
         )
         raise SystemExit(1)
+    except subprocess.TimeoutExpired:
+        # pg_dump was killed after 600s; it may have left a partial file
+        # behind. Unlike auto_backup() and the /api/backups endpoint, this
+        # command previously had no catch-all here, so a timeout propagated
+        # as a raw traceback instead of a clean, actionable CLI error.
+        target.unlink(missing_ok=True)
+        click.secho("Backup failed: pg_dump timed out after 600s.", fg="red", err=True)
+        raise SystemExit(1)
 
     if result.returncode != 0:
         click.secho(f"Backup failed: {result.stderr.strip()}", fg="red", err=True)
@@ -415,7 +424,7 @@ def cleanup_command(days, dry_run):
     """Clean up old logs and read notifications"""
     from app.models import AuditLog, Notification, SystemLog
 
-    now = datetime.utcnow()
+    now = now_utc()
     cutoff = now - timedelta(days=days)
     click.echo(f"Cleaning data older than {days} days (cutoff: {cutoff.date()})")
 

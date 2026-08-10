@@ -97,8 +97,14 @@ services:
       - app.tasks.celery_app:celery
       - beat
       - --loglevel=info
-      # Keep the schedule file on a writable path owned by appuser.
-      - --schedule=/app/logs/celerybeat-schedule
+      # Deliberately NOT under /app/logs: that path is bind-mounted from the
+      # host below, which overrides the image's chown with the host
+      # directory's own ownership (root, if Docker had to create it). Beat
+      # has no fallback like the app's own file-logging does - an unwritable
+      # schedule path crashes the container outright - so it uses a path
+      # that lives only in the image/container layer, never bind-mounted,
+      # where the Dockerfile's chown of /app/celerybeat always applies.
+      - --schedule=/app/celerybeat/celerybeat-schedule
     environment: *app-env
     depends_on:
       redis:

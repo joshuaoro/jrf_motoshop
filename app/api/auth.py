@@ -3,7 +3,6 @@ Auth API blueprint
 """
 
 import logging
-from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, request
 from flask_login import current_user, login_required, login_user, logout_user
@@ -16,6 +15,7 @@ from app.api.utils import (
     pagination_meta,
 )
 from app.core.extensions import db, limiter
+from app.core.time_utils import now_utc
 from app.models import User
 from app.schemas import ChangePasswordSchema, LoginSchema, UserSchema
 from app.services.system import SettingsService
@@ -60,7 +60,7 @@ def login():
         return error("Account is disabled", 403)
 
     login_user(user, remember=data.get("remember", False))
-    user.last_login = datetime.utcnow()
+    user.last_login = now_utc()
     db.session.commit()
 
     logger.info("User logged in: %s (%s)", user.email, user.role)
